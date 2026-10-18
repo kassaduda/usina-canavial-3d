@@ -1,0 +1,52 @@
+[
+ {
+  "indicador": "moagem",
+  "valor": 47350,
+  "unidade": "t/dia",
+  "meta": 55000,
+  "delta_pct": -0.8,
+  "janela": "vs. dia anterior",
+  "atingimento_pct": 86.1,
+  "situacao": "Dentro da capacidade"
+ },
+ {
+  "indicador": "atr",
+  "valor": 141.2,
+  "unidade": "kg/t",
+  "meta": 138.0,
+  "delta_pct": -0.1,
+  "janela": "vs. dia anterior",
+  "atingimento_pct": 102.3,
+  "situacao": "Dentro da meta"
+ },
+ {
+  "indicador": "etanol",
+  "valor": 1620,
+  "unidade": "m³/dia",
+  "meta": 1550,
+  "delta_pct": -1.9,
+  "janela": "vs. dia anterior",
+  "atingimento_pct": 104.5,
+  "situacao": "Acima da meta"
+ },
+ {
+  "indicador": "acucar",
+  "valor": 2180,
+  "unidade": "t/dia",
+  "meta": 2250,
+  "delta_pct": 0.1,
+  "janela": "vs. dia anterior",
+  "atingimento_pct": 96.9,
+  "situacao": "Abaixo da meta"
+ },
+ {
+  "indicador": "faturamento",
+  "valor": 64.8,
+  "unidade": "R$ mi",
+  "meta": 60.0,
+  "delta_pct": 6.1,
+  "janela": "vs. mês anterior",
+  "atingimento_pct": 108.0,
+  "situacao": "Acima da meta"
+ }
+]

@@ -1,0 +1,44 @@
+[
+ {
+  "id": "a1",
+  "hora": "17:42",
+  "nivel": "Atenção",
+  "area": "Fermentação",
+  "mensagem": "Temperatura da dorna 3 acima do limite (33,1 °C)"
+ },
+ {
+  "id": "a2",
+  "hora": "16:15",
+  "nivel": "Info",
+  "area": "Moagem",
+  "mensagem": "Parada breve na moenda 2 para limpeza de facas"
+ },
+ {
+  "id": "a3",
+  "hora": "14:03",
+  "nivel": "OK",
+  "area": "Caldeira",
+  "mensagem": "Pressão de vapor estabilizada em 42 bar"
+ },
+ {
+  "id": "a4",
+  "hora": "11:30",
+  "nivel": "Info",
+  "area": "Cogeração",
+  "mensagem": "Exportação de energia acima da programação"
+ },
+ {
+  "id": "a5",
+  "hora": "09:12",
+  "nivel": "Atenção",
+  "area": "Expedição",
+  "mensagem": "Fila de caminhões maior que a média no turno"
+ },
+ {
+  "id": "a6",
+  "hora": "06:05",
+  "nivel": "OK",
+  "area": "Destilação",
+  "mensagem": "Manutenção preventiva da coluna B concluída"
+ }
+]

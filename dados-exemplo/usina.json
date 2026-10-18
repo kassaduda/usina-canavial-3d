@@ -1,0 +1,20 @@
+[
+ {
+  "nome": "Usina Canavial",
+  "slogan": "Da cana ao tanque",
+  "safra": "Safra 2026/27",
+  "dia_safra": 190,
+  "temperatura_c": 28,
+  "clima": "Céu limpo",
+  "atualizado_em": "18/10/2026 18:10",
+  "dados_ate": "17/10/2026",
+  "destaque": "A moagem opera perto da capacidade e o ATR segue acima da meta; o açúcar está levemente abaixo do planejado.",
+  "usuario_nome": "Maria Eduarda",
+  "usuario_cargo": "Eng. de Processos",
+  "cidade": "Ibiporã - PR",
+  "saudacao": "Bem-vinda, Maria Eduarda!",
+  "subtitulo": "Veja como a usina está operando agora, etapa por etapa.",
+  "frase": "Cana de hoje, energia de amanhã.",
+  "selo": "Cana bem aproveitada, energia bem usada."
+ }
+]

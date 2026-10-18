@@ -1,0 +1,22 @@
+[
+ {
+  "id": "hidrat",
+  "produto": "Etanol hidratado",
+  "percentual": 31.0
+ },
+ {
+  "id": "anidro",
+  "produto": "Etanol anidro",
+  "percentual": 24.0
+ },
+ {
+  "id": "vhp",
+  "produto": "Açúcar VHP",
+  "percentual": 36.0
+ },
+ {
+  "id": "cristal",
+  "produto": "Açúcar cristal",
+  "percentual": 9.0
+ }
+]
