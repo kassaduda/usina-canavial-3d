@@ -1,1 +1,3 @@
 .venv/
+usina_canavial.db*
+__pycache__/
