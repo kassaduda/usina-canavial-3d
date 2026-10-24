@@ -154,7 +154,7 @@ def safra(s: Session = Sessao):
     return resposta
 
 
-# ---- arquivos do painel (lista fixa: a pasta também guarda o banco e o .git)
+# ---- arquivos do painel (só img-*.js e dash-shim.js: a pasta também guarda o banco e o .git)
 
 @app.get("/", include_in_schema=False)
 def pagina():
@@ -163,6 +163,6 @@ def pagina():
 
 @app.get("/{nome}.js", include_in_schema=False)
 def imagem_js(nome: str):
-    if not nome.startswith("img-") or "/" in nome or not (RAIZ / f"{nome}.js").is_file():
+    if not (nome.startswith("img-") or nome == "dash-shim") or "/" in nome or not (RAIZ / f"{nome}.js").is_file():
         raise HTTPException(404)
     return FileResponse(RAIZ / f"{nome}.js", media_type="text/javascript")
