@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from banco import (RAIZ, REGRAS, HistoricoSafra, LeituraSensor, Ocorrencia, ProducaoDiaria,
                    em_alarme, engine, ler_json, semear)
+from previsao import prever_etanol
 
 INICIO_SAFRA = date(2026, 4, 11)  # dia 190 da safra = 18/10/2026
 DIAS_NO_GRAFICO = 30
@@ -73,7 +74,9 @@ def etapas(s: Session = Sessao):
     resposta = []
     for e in ler_json("etapas"):
         for i in range(1, 5):
-            e[f"val{i}"] = numero(e[f"val{i}"], atuais[(e["etapa"], e[f"ind{i}"])])
+            lido = atuais.get((e["etapa"], e[f"ind{i}"]))
+            if lido is not None:  # indicador fixo (ex.: Capacidade nominal) não vem dos sensores
+                e[f"val{i}"] = numero(e[f"val{i}"], lido)
         alertas = [r for r in REGRAS if r["etapa"] == e["etapa"]
                    and em_alarme(r, atuais[(r["etapa"], r["sensor"])])]
         e["status"] = "Atenção" if alertas else "Em operação"
@@ -120,6 +123,13 @@ def kpis(s: Session = Sessao):
 def producao(s: Session = Sessao):
     return [dict(dia=d.dia, moagem_t=round(d.moagem_t), etanol_m3=round(d.etanol_m3),
                  acucar_t=round(d.acucar_t), atr_kg_t=round(d.atr_kg_t, 1)) for d in dias_recentes(s)]
+
+
+@app.get("/api/previsao")
+def previsao(s: Session = Sessao):
+    """Etanol dos próximos 5 dias (ETS, intervalo de 80%); [] se não der para prever."""
+    linhas = s.execute(select(ProducaoDiaria.dia, ProducaoDiaria.etanol_m3).order_by(ProducaoDiaria.dia)).all()
+    return prever_etanol([(d, v) for d, v in linhas])
 
 
 @app.get("/api/mix")
