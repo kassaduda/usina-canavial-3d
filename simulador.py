@@ -75,7 +75,11 @@ class Simulador:
         etanol = self.v("Destilação", "Hidratado") + self.v("Destilação", "Anidro")
         self.valores[("Fermentação", "Eficiência de fermentação")] = round(ferm, 1)
         self.valores[("Indicadores gerais", "Perdas totais")] = round(100 - extracao * ferm * 0.995 / 100, 1)
-        self.valores[("Indicadores gerais", "Rendimento industrial")] =             round(etanol * 1000 / self.v("Recepção e moagem", "Cana processada"), 1)
+        # Fila na recepção cresce com a moagem perto da capacidade (nominal de 24.000 t/dia).
+        carga = self.v("Recepção e moagem", "Cana processada") / 24000
+        self.valores[("Recepção e moagem", "Fila de recepção")] = max(0, round(4 + 14 * (carga - 0.8) + random.gauss(0, 0.7)))
+        self.valores[("Indicadores gerais", "Rendimento industrial")] = \
+            round(etanol * 1000 / self.v("Recepção e moagem", "Cana processada"), 1)
 
     def dorna3(self) -> float:
         """Dorna 3 oscila entre 32,6 e 34,6 °C (ciclo de 6 min), ~80% do tempo acima de 33 °C."""

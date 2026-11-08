@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from banco import (CAPACIDADES, ETAPAS_3D, LIMITES_TEMP, RAIZ, REGRAS, SENSOR_GRAFICO, HistoricoSafra,
+from banco import (CAPACIDADES, ETAPAS_3D, LIMITES_TEMP, RAIZ, REGRAS, SENSOR_GRAFICO, TEMP_DORNAS, HistoricoSafra,
                    LeituraSensor, Ocorrencia, ProducaoDiaria, em_alarme, engine, fmt_br, ler_json, semear)
 from previsao import prever_etanol
 
@@ -229,6 +229,9 @@ def alertas_ativos(atuais: dict) -> list[dict]:
     return ativos
 
 
+NOMES_DORNAS = {f"Temperatura da dorna {n}" for n in TEMP_DORNAS}  # ignora dornas antigas do banco
+
+
 def montar_cena(atuais: dict, ativos: list[dict]) -> dict:
     """Camadas do painel 3D a partir de um conjunto de leituras (agora ou de um instante do passado)."""
     etapas_cena = {}
@@ -237,7 +240,7 @@ def montar_cena(atuais: dict, ativos: list[dict]) -> dict:
         if sensor:
             temp = atuais.get((nome, sensor))
         else:  # fermentação: dorna mais quente
-            temps = [v for (e, n), v in atuais.items() if e == nome and n.startswith("Temperatura da dorna")]
+            temps = [v for (e, n), v in atuais.items() if e == nome and n in NOMES_DORNAS]
             temp = max(temps) if temps else None
         sensores, capacidade = CAPACIDADES[id_]
         reais = [atuais.get((nome, x)) for x in sensores]
@@ -247,7 +250,8 @@ def montar_cena(atuais: dict, ativos: list[dict]) -> dict:
                                 alertas=[a for a in ativos if a["etapa"] == nome])
     return dict(etapas=etapas_cena, alertas=ativos,
                 dornas={n.rsplit(" ", 1)[1]: v for (e, n), v in atuais.items()
-                        if e == "Fermentação" and n.startswith("Temperatura da dorna")})
+                        if e == "Fermentação" and n in NOMES_DORNAS},
+                fila_recepcao=atuais.get(("Recepção e moagem", "Fila de recepção")))
 
 
 @app.get("/api/cena")

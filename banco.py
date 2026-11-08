@@ -85,7 +85,7 @@ FIXOS = {"Capacidade nominal", "Dornas ativas"}
 # Grandezas com limite de alerta próximo do normal: variam menos.
 BEM_COMPORTADAS = {"%", "°GL", "pH", "°Bx", "°C", "min"}
 
-TEMP_DORNAS = {1: 31.4, 2: 31.8, 3: 33.1, 4: 31.6, 5: 32.0, 6: 31.5}
+TEMP_DORNAS = {1: 31.4, 2: 31.8, 3: 33.1, 4: 31.6}  # 4 dornas, como na cena 3D
 
 
 def sensores() -> list[dict]:
@@ -117,6 +117,7 @@ def sensores() -> list[dict]:
         ("Fermentação", "Eficiência de fermentação", "%", 90.5, 1, 0.001),
         ("Indicadores gerais", "Perdas totais", "%", 13.4, 1, 0.001),
         ("Indicadores gerais", "Rendimento industrial", "L/t", 81.0, 1, 0.001),
+        ("Recepção e moagem", "Fila de recepção", "caminhões", 5, 0, 0.001),
         # Temperaturas que faltavam para a camada de temperatura do painel 3D.
         ("Recepção e moagem", "Temperatura do caldo", "°C", 32.5, 1, 0.01),
         ("Destilação", "Temperatura da coluna", "°C", 78.0, 1, 0.004),

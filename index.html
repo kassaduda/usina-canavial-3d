@@ -396,6 +396,7 @@
   ];
   const byId = Object.fromEntries(STAGES.map((s) => [s.id, s]));
   let T = 0; // tempo da simulação (s)
+  let flowPh = 0, smokeD = 0.5; // fase dos pontos nas tubulações e densidade da fumaça (0,5 normal, 1 densa)
   // Com a API, o status vem dos alertas ativos do banco; sem ela, regra local do exemplo.
   let apiOk = false, cena = {}, cenaAlertas = [], histMode = false, forecast = [], selTruck = null;
   const TANK_CAP = 22000; // m³, capacidade do tanque de etanol
@@ -672,9 +673,9 @@
   // vapor
   const steams = [];
   [[-10.5, B + 8.2, -6.8], [12.6, B + 7.4, 8.0], [8.2, B + 8.6, 8.0]].forEach(([x, y, z]) => {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 8; i++) {
       const m = new THREE.Mesh(new THREE.SphereGeometry(0.7, 10, 8), new THREE.MeshBasicMaterial({ color: 0xdce6ea, transparent: true, opacity: 0, depthWrite: false }));
-      scene.add(m); steams.push({ m, x, y, z, ph: i / 5 });
+      scene.add(m); steams.push({ m, x, y, z, ph: i / 8, i });
     }
   });
 
@@ -715,13 +716,28 @@
       if (move && dt > 0) {
         let n = t.s + 6 * dt;
         if (!t.served && t.s < R.stop && n >= R.stop) { n = R.stop; t.dwell = R.dwell; }
-        t.s = n; if (t.s >= R.L) { t.s -= R.L; t.served = false; }
+        t.s = n; if (t.s >= R.L) { if (t.retire) t.gone = true; else { t.s -= R.L; t.served = false; } }
       }
       const p = at(R, t.s), want = Math.atan2(-p.dz, p.dx);
       let df = want - t.rot; while (df > Math.PI) df -= 2 * Math.PI; while (df < -Math.PI) df += 2 * Math.PI;
       t.rot += df * Math.min(1, dt * 9 + (dt === 0 ? 1 : 0));
       t.mesh.position.set(p.x, B > 0 ? 0.06 : 0, p.z); t.mesh.rotation.y = t.rot;
     });
+    for (let i = trucks.length - 1; i >= 0; i--) if (trucks[i].gone) { scene.remove(trucks[i].mesh); trucks.splice(i, 1); }
+  }
+  // Com a API, o número de caminhões de cana segue a fila da recepção (2 em movimento + a fila).
+  let canaSeq = 1044;
+  function syncQueue(fila) {
+    const want = clamp(Math.round(fila) + 2, 2, 14), ativos = trucks.filter((t) => t.kind === 'cana' && !t.retire);
+    if (ativos.length < want) {
+      if (Math.min(...ativos.map((t) => t.s), 99) < 6.5) return; // espera abrir espaço na entrada
+      const id = 'CAN-' + (++canaSeq), mesh = makeTruck('cana'); scene.add(mesh); mesh.userData.truck = id;
+      const t = { kind: 'cana', id, mesh, s: 0, dwell: 0, served: false, rot: 0, state: '' };
+      const p = at(ROUTES.cana, 0); t.rot = Math.atan2(-p.dz, p.dx); trucks.push(t);
+    } else if (ativos.length > want) {
+      const t = ativos.filter((x) => x.served && x.dwell === 0).pop() || ativos.filter((x) => x.dwell === 0).pop();
+      if (t) t.retire = true; // sai de cena ao fim do percurso
+    }
   }
 
   /* ---------- Câmera ---------- */
@@ -835,8 +851,9 @@
     const dot = (s) => (s === 'Descarregando' || s === 'Carregando') ? '' : (s === 'Na fila' || s === 'Aguardando') ? 'info' : '';
     $('#yard').innerHTML = trucks.map((t) => `<tr><td>${t.id}</td><td>${t.kind === 'cana' ? 'Cana' : 'Etanol'}</td><td><span class="dot ${dot(t.state)}"></span>${t.state}</td></tr>`).join('');
     if (selTruck) renderTruck();
+    if (apiOk && !histMode && cena.fila_recepcao != null) syncQueue(cena.fila_recepcao);
     $('#yardCount').textContent = `${trucks.length} caminhões · simulado`;
-    byId.moagem.ind[1].v = trucks.filter((t) => t.kind === 'cana' && (t.state === 'Na fila' || t.state === 'Descarregando')).length;
+    if (!apiOk) byId.moagem.ind[1].v = trucks.filter((t) => t.kind === 'cana' && (t.state === 'Na fila' || t.state === 'Descarregando')).length;
     byId.expedicao.ind[1].v = trucks.filter((t) => t.kind === 'etanol' && t.state === 'Carregando').length;
   }
 
@@ -975,8 +992,14 @@
     applyCamera();
     const sd = still ? 0 : dt; simTrucks(sd);
     if (!still) {
-      pipes.forEach((P) => P.dots.forEach((o) => { const p = at(P, (o.off + now * 0.0035) % P.L); o.m.position.set(p.x, 0.78, p.z); }));
-      steams.forEach((s) => { const u = (s.ph + now * 0.00018) % 1; s.m.position.set(s.x + u * 1.4, s.y + u * 5, s.z - u * 0.6); s.m.scale.setScalar(0.5 + u * 1.6); s.m.material.opacity = 0.28 * Math.sin(u * Math.PI); });
+      // velocidade dos pontos proporcional à vazão do caldo (vazão / capacidade nominal)
+      const cd = apiOk && cena.caldo && cena.caldo.producao != null ? cena.caldo : null;
+      flowPh += dt * 3.5 * (cd ? clamp(cd.producao / cd.capacidade * 1.15, 0.15, 1.8) : 1);
+      pipes.forEach((P) => P.dots.forEach((o) => { const p = at(P, (o.off + flowPh) % P.L); o.m.position.set(p.x, 0.78, p.z); }));
+      // fumaça mais densa com a moagem acima de 90% da capacidade
+      const cm = apiOk && cena.moagem && cena.moagem.producao != null ? cena.moagem.producao / cena.moagem.capacidade : LOAD.moagem();
+      smokeD += ((cm > 0.9 ? 1 : 0.5) - smokeD) * Math.min(1, dt * 1.5);
+      steams.forEach((s) => { const u = (s.ph + now * 0.00018) % 1, w = clamp(smokeD * 8 - s.i, 0, 1); s.m.position.set(s.x + u * 1.4, s.y + u * 5, s.z - u * 0.6); s.m.scale.setScalar((0.5 + u * 1.6) * (0.8 + 0.4 * smokeD)); s.m.material.opacity = (0.18 + 0.2 * smokeD) * w * Math.sin(u * Math.PI); });
     } else { pipes.forEach((P) => P.dots.forEach((o) => { const p = at(P, o.off % P.L); o.m.position.set(p.x, 0.78, p.z); })); }
     const warn = statusOf(byId.fermentacao) === 'warn';
     beacon.visible = warn; groups.fermentacao.userData.hot.material = warn ? dornaHot : dornaBand;
@@ -1032,10 +1055,11 @@
     const put = (s, n, v, k, u) => { const i = s.ind[n]; if (v != null) i.v = v; if (k) i.k = k; if (u != null) i.u = u; };
     const ev = (e, nome) => { for (let n = 1; n <= 4; n++) if (e['ind' + n] === nome) return { v: e['val' + n], u: e['un' + n] }; return {}; };
     const m = E('Recepção e moagem'), c = E('Tratamento do caldo'), f = E('Fermentação'), d = E('Destilação'), x = E('Expedição');
+    put(byId.moagem, 1, cn.fila_recepcao, 'Fila na recepção', 'caminhões');
     put(byId.moagem, 0, K('moagem').valor); put(byId.moagem, 2, K('atr').valor); put(byId.moagem, 3, ev(m, 'Extração').v);
     put(byId.caldo, 0, ev(c, 'Brix médio').v); put(byId.caldo, 1, ev(c, 'pH do caldo').v); put(byId.caldo, 2, ev(c, 'Temperatura').v); put(byId.caldo, 3, ev(c, 'Vazão').v);
     put(byId.fermentacao, 0, cn.dornas['3']); put(byId.fermentacao, 1, ev(f, 'Teor alcoólico').v);
-    put(byId.fermentacao, 2, ev(f, 'Dornas ativas').v, null, 'un'); put(byId.fermentacao, 3, ev(f, 'Tempo de ciclo').v);
+    put(byId.fermentacao, 2, ev(f, 'Dornas ativas').v, null, 'de ' + Object.keys(cn.dornas).length); put(byId.fermentacao, 3, ev(f, 'Tempo de ciclo').v);
     put(byId.destilacao, 0, K('etanol').valor); put(byId.destilacao, 1, ev(d, 'Pureza do hidratado').v, 'Pureza', '°GL');
     put(byId.destilacao, 2, cn.etapas.destilacao.temperatura); put(byId.destilacao, 3, ev(d, 'Consumo de vapor').v, 'Consumo de vapor', 't/m³');
     byId.destilacao.ind[3].d = 1;
@@ -1053,6 +1077,7 @@
   }
   function setSource(ok, via) {
     apiOk = ok;
+    if (!ok) byId.moagem.ind[1].k = 'Fila de recepção (simulado)';
     $('#srcTxt').textContent = ok ? 'Ao vivo · ' + (via || 'API') : 'Exemplo (sem API)';
     $('#srcNote').textContent = ok ? 'Dados fictícios gerados pelo simulador da usina (API local). Pátio de caminhões simulado no navegador.' : 'Dados fictícios de demonstração, gerados no navegador.';
   }
@@ -1095,7 +1120,7 @@
     const snap = snaps.reduce((b, x) => Math.abs(t(x) - alvo) < Math.abs(t(b) - alvo) ? x : b);
     const V = (e, k) => snap.v[e + '|' + k];
     const R = 'Recepção e moagem', C = 'Tratamento do caldo', F = 'Fermentação', D = 'Destilação', X = 'Expedição';
-    putInd(byId.moagem, 0, V(R, 'Cana processada')); putInd(byId.moagem, 2, V('Indicadores gerais', 'ATR')); putInd(byId.moagem, 3, V(R, 'Extração'));
+    putInd(byId.moagem, 1, V(R, 'Fila de recepção')); putInd(byId.moagem, 0, V(R, 'Cana processada')); putInd(byId.moagem, 2, V('Indicadores gerais', 'ATR')); putInd(byId.moagem, 3, V(R, 'Extração'));
     putInd(byId.caldo, 0, V(C, 'Brix médio')); putInd(byId.caldo, 1, V(C, 'pH do caldo')); putInd(byId.caldo, 2, V(C, 'Temperatura')); putInd(byId.caldo, 3, V(C, 'Vazão'));
     putInd(byId.fermentacao, 0, V(F, 'Temperatura da dorna 3')); putInd(byId.fermentacao, 1, V(F, 'Teor alcoólico'));
     putInd(byId.fermentacao, 3, V(F, 'Tempo de ciclo')); putInd(byId.fermentacao, 4, V(F, 'Eficiência de fermentação'));
