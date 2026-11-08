@@ -3,7 +3,7 @@
 As rotas /api/* devolvem o mesmo formato dos arquivos de dados-exemplo/, mas lendo o
 banco SQLite que o simulador alimenta. A raiz (/) serve o painel 3D (index.html) e /2d o painel 2D.
 
-    uvicorn main:app --reload
+    uvicorn main:app
 """
 import asyncio
 import re
@@ -14,7 +14,7 @@ from datetime import date, datetime, timedelta
 
 from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -300,7 +300,7 @@ def historico(minutos: int = 5, detalhe: bool = False, s: Session = Sessao):
 # ---- pergunte à usina (regras e palavras-chave, sem serviços externos)
 
 class Pergunta(BaseModel):
-    pergunta: str
+    pergunta: str = Field(max_length=300)
 
 
 def sem_acento(t: str) -> str:

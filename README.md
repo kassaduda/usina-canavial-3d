@@ -60,6 +60,7 @@ A versão 2D continua disponível em `/2d`, com KPIs, produção diária, previs
 | `previsao.py` | Previsão de etanol (ETS) |
 | `index.html` | Painel 3D (rota `/`) |
 | `painel2d.html` | Painel 2D original (rota `/2d`) |
+| `img-*.js` | Imagens em base64 usadas apenas pelo painel 2D (`/2d`) |
 | `dados-exemplo/` | JSONs de partida, formato de referência e fallback |
 
 Rotas principais: `/api/etapas`, `/api/kpis`, `/api/cena`, `/api/indicadores`, `/api/alarmes`, `POST /api/alertas/{id}/reconhecer`, `/api/historico?minutos=N&detalhe=true`, `/api/previsao`, `POST /api/perguntar` e `/ws`.
@@ -96,6 +97,12 @@ python -m uvicorn main:app --port 8001
 ```
 
 Abra <http://127.0.0.1:8001> para o painel 3D e <http://127.0.0.1:8001/2d> para o 2D. A documentação da API fica em <http://127.0.0.1:8001/docs>. Use a porta 8001 para não conflitar com outra instância na 8000.
+
+## Limitações
+
+- Todos os dados são fictícios.
+- A API não tem autenticação: é para uso local de demonstração.
+- Ainda não há testes automatizados.
 
 ## Glossário
 
