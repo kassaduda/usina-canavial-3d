@@ -5,11 +5,16 @@ banco SQLite que o simulador alimenta. A raiz (/) serve o painel 3D (index.html)
 
     uvicorn main:app --reload
 """
+import asyncio
+import re
+import time
+import unicodedata
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -125,11 +130,16 @@ def producao(s: Session = Sessao):
                  acucar_t=round(d.acucar_t), atr_kg_t=round(d.atr_kg_t, 1)) for d in dias_recentes(s)]
 
 
+_cache_prev = {"t": -1e9, "dados": []}
+
+
 @app.get("/api/previsao")
 def previsao(s: Session = Sessao):
     """Etanol dos próximos 5 dias (ETS, intervalo de 80%); [] se não der para prever."""
-    linhas = s.execute(select(ProducaoDiaria.dia, ProducaoDiaria.etanol_m3).order_by(ProducaoDiaria.dia)).all()
-    return prever_etanol([(d, v) for d, v in linhas])
+    if time.monotonic() - _cache_prev["t"] > 60:  # o ajuste do modelo é caro: refaz a cada minuto
+        linhas = s.execute(select(ProducaoDiaria.dia, ProducaoDiaria.etanol_m3).order_by(ProducaoDiaria.dia)).all()
+        _cache_prev.update(t=time.monotonic(), dados=prever_etanol([(d, v) for d, v in linhas]))
+    return _cache_prev["dados"]
 
 
 @app.get("/api/mix")
@@ -219,16 +229,8 @@ def alertas_ativos(atuais: dict) -> list[dict]:
     return ativos
 
 
-@app.get("/api/cena")
-def cena(s: Session = Sessao):
-    """Dados das camadas do painel 3D: temperatura/limite, produção/capacidade e alertas ativos."""
-    atuais = leituras_atuais(s)
-    ativos = alertas_ativos(atuais)
-    for a in ativos:  # liga o alarme ativo ao registro no banco (para reconhecer)
-        o = s.scalars(select(Ocorrencia).where(Ocorrencia.regra == a["id"], Ocorrencia.nivel == "Atenção")
-                      .order_by(Ocorrencia.id.desc())).first()
-        a.update(alarme_id=f"a{o.id}" if o else None, reconhecido=bool(o and o.reconhecido_em),
-                 segundos_ate_reconhecer=ocorrencia(o)["segundos_ate_reconhecer"] if o else None)
+def montar_cena(atuais: dict, ativos: list[dict]) -> dict:
+    """Camadas do painel 3D a partir de um conjunto de leituras (agora ou de um instante do passado)."""
     etapas_cena = {}
     for id_, nome in ETAPAS_3D.items():
         limite, sensor = LIMITES_TEMP[id_]
@@ -248,9 +250,26 @@ def cena(s: Session = Sessao):
                         if e == "Fermentação" and n.startswith("Temperatura da dorna")})
 
 
+@app.get("/api/cena")
+def cena(s: Session = Sessao):
+    """Dados das camadas do painel 3D: temperatura/limite, produção/capacidade e alertas ativos."""
+    atuais = leituras_atuais(s)
+    ativos = alertas_ativos(atuais)
+    for a in ativos:  # liga o alarme ativo ao registro no banco (para reconhecer)
+        o = s.scalars(select(Ocorrencia).where(Ocorrencia.regra == a["id"], Ocorrencia.nivel == "Atenção")
+                      .order_by(Ocorrencia.id.desc())).first()
+        a.update(alarme_id=f"a{o.id}" if o else None, reconhecido=bool(o and o.reconhecido_em),
+                 segundos_ate_reconhecer=ocorrencia(o)["segundos_ate_reconhecer"] if o else None)
+    return montar_cena(atuais, ativos)
+
+
 @app.get("/api/historico")
-def historico(minutos: int = 5, s: Session = Sessao):
-    """Série recente do sensor de gráfico de cada etapa (até 120 min)."""
+def historico(minutos: int = 5, detalhe: bool = False, s: Session = Sessao):
+    """Série recente do sensor de gráfico de cada etapa (até 120 min).
+
+    Com detalhe=true devolve também um instantâneo por minuto (leituras + camadas), usado
+    pela linha do tempo "voltar no tempo".
+    """
     minutos = max(1, min(minutos, 120))
     desde = datetime.now() - timedelta(minutes=minutos)
     series = {}
@@ -259,7 +278,99 @@ def historico(minutos: int = 5, s: Session = Sessao):
                            .where(LeituraSensor.etapa == etapa, LeituraSensor.sensor == sensor,
                                   LeituraSensor.ts >= desde).order_by(LeituraSensor.ts)).all()
         series[id_] = [dict(ts=t.isoformat(timespec="seconds"), v=v) for t, v in linhas]
-    return dict(minutos=minutos, series=series)
+    resposta = dict(minutos=minutos, series=series)
+    if detalhe:
+        base = leituras_atuais(s)  # sensores fixos (capacidade, dornas ativas) não têm série
+        por_minuto: dict[datetime, dict] = {}
+        for t, e, n, v in s.execute(select(LeituraSensor.ts, LeituraSensor.etapa, LeituraSensor.sensor,
+                                           LeituraSensor.valor).where(LeituraSensor.ts >= desde)
+                                    .order_by(LeituraSensor.ts)):
+            por_minuto.setdefault(t.replace(second=0, microsecond=0), {})[(e, n)] = v
+        resposta["instantaneos"] = [
+            dict(ts=m.isoformat(timespec="minutes"), v={f"{e}|{n}": v for (e, n), v in atuais.items()},
+                 cena=montar_cena(atuais, alertas_ativos(atuais)))
+            for m, parcial in sorted(por_minuto.items()) for atuais in [base | parcial]]
+    return resposta
+
+
+# ---- pergunte à usina (regras e palavras-chave, sem serviços externos)
+
+class Pergunta(BaseModel):
+    pergunta: str
+
+
+def sem_acento(t: str) -> str:
+    return unicodedata.normalize("NFD", t.lower()).encode("ascii", "ignore").decode()
+
+
+def num(v, casas: int | None = None) -> str:
+    casas = (0 if float(v).is_integer() else 1) if casas is None else casas
+    return f"{v:,.{casas}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+PALAVRAS_ETAPA = {"moagem": r"moagem|moenda|recepcao|cana", "caldo": r"caldo|tratamento|ph|brix",
+                  "fermentacao": r"fermenta|dorna|levedura", "destilacao": r"destila|coluna|pureza|hidratado|anidro",
+                  "expedicao": r"expedi|estoque|tanque|caminh|fila"}
+ID_DA_ETAPA = {nome: id_ for id_, nome in ETAPAS_3D.items()}
+
+
+def tem(texto: str, padrao: str) -> bool:
+    return re.search(rf"\b(?:{padrao})", texto) is not None
+
+
+@app.post("/api/perguntar")
+def perguntar(p: Pergunta, s: Session = Sessao):
+    q = sem_acento(p.pergunta)
+    if tem(q, r"atencao|alerta|alarme|problema|critic|anormal"):
+        ativos = alertas_ativos(leituras_atuais(s))
+        if not ativos:
+            return dict(resposta="Nenhuma etapa está em atenção agora. Tudo dentro dos limites.", etapa=None)
+        return dict(resposta="Em atenção agora: " + "; ".join(f"{a['area']} ({a['mensagem']})" for a in ativos) + ".",
+                    etapa=ID_DA_ETAPA.get(ativos[0]["etapa"]))
+    if tem(q, r"previs|prever|amanha|proximos dias|projec"):
+        prev = previsao(s)
+        if not prev:
+            return dict(resposta="Ainda não há dados suficientes para prever o etanol.", etapa="expedicao")
+        dias = ", ".join(f"{date.fromisoformat(x['dia']):%d/%m}: {num(x['previsto'])} m³" for x in prev)
+        return dict(resposta=f"Previsão de etanol para os próximos {len(prev)} dias (intervalo de 80%): {dias}.",
+                    etapa="expedicao")
+    if tem(q, r"rendimento|eficiencia|perda"):
+        ind = {i["id"]: i["valor"] for i in indicadores(s)}
+        return dict(resposta=f"Rendimento industrial de {num(ind.get('rendimento', 0), 1)} L de etanol por tonelada de cana; "
+                             f"eficiência de extração {num(ind.get('ef_extracao', 0), 1)} %, de fermentação "
+                             f"{num(ind.get('ef_fermentacao', 0), 1)} %; perdas totais {num(ind.get('perdas', 0), 1)} %.",
+                    etapa="fermentacao" if tem(q, r"fermenta") else "destilacao")
+    for id_, padrao in PALAVRAS_ETAPA.items():
+        if tem(q, padrao):
+            e = next(x for x in etapas(s) if x["etapa"] == ETAPAS_3D[id_])
+            vals = "; ".join(f"{e[f'ind{i}']}: {num(e[f'val{i}'])} {e[f'un{i}']}" for i in range(1, 5))
+            return dict(resposta=f"{e['etapa']} está em {e['status'].lower()}. {e['descricao']} {vals}.", etapa=id_)
+    if tem(q, r"produ|hoje|moeu|quanto"):
+        d = dias_recentes(s)[-1]
+        return dict(resposta=f"Hoje a usina processou {num(d.moagem_t)} t de cana, produziu {num(d.etanol_m3)} m³ de "
+                             f"etanol e {num(d.acucar_t)} t de açúcar.", etapa="moagem")
+    return dict(resposta="Não entendi. Tente: “o que está em atenção?”, “produção de hoje”, “previsão de etanol” "
+                         "ou o estado de uma etapa (“como está a fermentação?”).", etapa=None)
+
+
+# ---- WebSocket: mesmo conteúdo da consulta, enviado a cada 10 s
+
+def pacote(s: Session) -> dict:
+    return dict(etapas=etapas(s), kpis=kpis(s), cena=cena(s), historico=historico(5, False, s),
+                indicadores=indicadores(s), alarmes=alarmes(20, s), previsao=previsao(s))
+
+
+@app.websocket("/ws")
+async def ws(socket: WebSocket):
+    await socket.accept()
+    try:
+        while True:
+            with Session(engine) as s:
+                dados = pacote(s)
+            await socket.send_json(dados)
+            await asyncio.sleep(10)
+    except (WebSocketDisconnect, RuntimeError):
+        pass
 
 
 # ---- arquivos do painel (só img-*.js e dash-shim.js: a pasta também guarda o banco e o .git)

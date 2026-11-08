@@ -116,7 +116,7 @@ def sensores() -> list[dict]:
         # Indicadores do setor: o simulador recalcula a cada ciclo (ver Simulador.derivados).
         ("Fermentação", "Eficiência de fermentação", "%", 90.5, 1, 0.001),
         ("Indicadores gerais", "Perdas totais", "%", 13.4, 1, 0.001),
-        ("Indicadores gerais", "Rendimento industrial", "L/t", 34.2, 1, 0.001),
+        ("Indicadores gerais", "Rendimento industrial", "L/t", 81.0, 1, 0.001),
         # Temperaturas que faltavam para a camada de temperatura do painel 3D.
         ("Recepção e moagem", "Temperatura do caldo", "°C", 32.5, 1, 0.01),
         ("Destilação", "Temperatura da coluna", "°C", 78.0, 1, 0.004),
@@ -147,7 +147,7 @@ LIMITES_TEMP = {
 
 # Produção real (soma dos sensores) e capacidade nominal, na mesma unidade.
 CAPACIDADES = {
-    "moagem": (["Cana processada"], 55000),          # t/dia
+    "moagem": (["Cana processada"], 24000),          # t/dia
     "caldo": (["Vazão"], 700),                       # m³/h
     "fermentacao": (["Volume em dornas"], 350000),   # L
     "destilacao": (["Hidratado", "Anidro"], 1800),   # m³/dia

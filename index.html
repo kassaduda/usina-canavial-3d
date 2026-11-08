@@ -198,7 +198,7 @@
   }
 
   /* gestão de alarmes */
-  .alarms { position: absolute; top: 78px; left: 66px; width: min(430px, calc(100% - 32px)); max-height: calc(100% - 200px); overflow: auto; padding: 14px; border-radius: 14px; z-index: 6; display: flex; flex-direction: column; gap: 8px; }
+  .alarms { position: absolute; top: 196px; left: 66px; width: min(430px, calc(100% - 32px)); max-height: calc(100% - 260px); overflow: auto; padding: 14px; border-radius: 14px; z-index: 6; display: flex; flex-direction: column; gap: 8px; }
   .alarms[hidden] { display: none; }
   .alarms h3 { margin: 4px 0 0; font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
   .alarms .top2 { display: flex; justify-content: space-between; align-items: center; }
@@ -213,6 +213,34 @@
   .al.ok { opacity: .72; }
   .chip b { font-weight: 500; margin-left: 4px; color: var(--orange); }
   #app.tour .alarms { visibility: hidden; }
+
+  /* pergunte à usina, cartão do caminhão, linha do tempo, previsão */
+  .ask { position: absolute; top: 132px; left: 66px; width: min(420px, calc(100% - 32px)); padding: 8px; border-radius: 14px; z-index: 7; display: flex; flex-direction: column; gap: 8px; margin: 0; }
+  .ask .row { display: flex; gap: 6px; }
+  .ask input { flex: 1; min-width: 0; background: rgba(255, 255, 255, .05); border: 1px solid var(--line); color: var(--fg); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 13px; }
+  .ask button { border: 1px solid rgba(34, 197, 94, .5); background: rgba(34, 197, 94, .12); color: var(--fg); border-radius: 10px; padding: 0 12px; font-size: 12.5px; }
+  .bubble { font-size: 13px; line-height: 1.45; padding: 10px 12px; border-radius: 12px; background: rgba(34, 197, 94, .1); border: 1px solid rgba(34, 197, 94, .35); cursor: pointer; }
+  .bubble[hidden], .tcard[hidden], .fc[hidden], .tl button[hidden] { display: none; }
+  .tcard { position: absolute; top: 132px; right: 354px; width: 270px; padding: 12px 14px; border-radius: 14px; z-index: 6; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
+  .tcard .th { display: flex; justify-content: space-between; align-items: center; }
+  .tcard .th button { border: 1px solid var(--line); background: transparent; color: var(--fg); border-radius: 999px; padding: 2px 9px; font-size: 12px; }
+  .tcard dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; }
+  .tcard dt { color: var(--muted); }
+  .tcard dd { margin: 0; text-align: right; }
+  .tcard small { color: var(--muted); font-size: 11px; }
+  .tl { display: flex; align-items: center; gap: 8px; padding: 0 6px 2px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+  .tl input { flex: 1; min-width: 110px; accent-color: var(--green); }
+  .tl button { border: 1px solid rgba(34, 197, 94, .5); background: rgba(34, 197, 94, .12); color: var(--fg); border-radius: 999px; padding: 3px 10px; font-size: 12px; }
+  .fc { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: rgba(255, 255, 255, .04); }
+  .fcT { color: var(--muted); font-size: 11.5px; margin-bottom: 8px; }
+  .fcB { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; align-items: end; height: 70px; }
+  .fcB div { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; font-size: 10.5px; gap: 2px; }
+  .fcB i { display: block; width: 100%; background: linear-gradient(#4ade80, #2f7d57); border-radius: 4px 4px 0 0; min-height: 4px; }
+  .fcB b { font-family: var(--font-mono); font-weight: 500; font-size: 10.5px; }
+  .fcB small { color: var(--muted); font-size: 10px; }
+  .fcN { color: var(--muted); font-size: 11.5px; margin-top: 8px; line-height: 1.4; }
+  #app.tour .ask, #app.tour .tcard { visibility: hidden; }
+  @media (max-width: 860px) { .ask { top: 150px; left: 12px; width: calc(100% - 24px); } .tcard { top: 210px; right: 12px; } .alarms { top: 210px; left: 12px; } }
 
   /* camadas e tour */
   .layers { grid-area: layers; align-self: end; justify-self: start; padding: 8px; border-radius: 14px; display: flex; flex-direction: column; gap: 8px; max-width: 100%; }
@@ -250,6 +278,8 @@
   <canvas id="gl" aria-label="Vista isométrica 3D da usina. Arraste para mover, use a roda do mouse para aproximar."></canvas>
   <div id="vig"></div>
   <div class="caption card" id="cap" hidden><div class="capTxt" id="capTxt"></div><div class="capRow"><div class="dots" id="capDots"></div><button type="button" id="capStop">Parar tour</button></div></div>
+  <form class="ask card" id="ask" autocomplete="off"><div class="row"><input id="askIn" type="text" maxlength="200" placeholder="Pergunte à usina: o que está em atenção?" aria-label="Pergunte à usina"><button type="submit">Perguntar</button></div><div class="bubble" id="bubble" hidden></div></form>
+  <aside class="tcard card" id="tcard" hidden></aside>
   <section class="alarms card" id="alarms" hidden aria-label="Gestão de alarmes"></section>
   <div id="tags"></div>
   <div id="nogl" hidden>Seu navegador não conseguiu abrir a vista 3D (WebGL indisponível). Tente outro navegador ou ative a aceleração de hardware.</div>
@@ -283,6 +313,7 @@
       </div>
       <p class="desc" id="pDesc"></p>
       <div class="inds" id="pInds"></div>
+      <div class="fc" id="fc" hidden></div>
       <div class="spark-wrap">
         <div class="spark-top"><span id="spLabel"></span><span id="spLimit"></span></div>
         <div class="spark" id="spark"><svg viewBox="0 0 200 64" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22c55e" stop-opacity=".35"/><stop offset="1" stop-color="#22c55e" stop-opacity="0"/></linearGradient></defs><line id="spLim" x1="0" x2="200" stroke="#fb923c" stroke-width="1" stroke-dasharray="4 4" vector-effect="non-scaling-stroke" opacity="0"/><path id="spArea" fill="url(#sg)"/><polyline id="spLine" fill="none" stroke="#22c55e" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg><div class="end" id="spEnd"></div></div>
@@ -301,6 +332,7 @@
         <button class="chip tourbtn" type="button" id="tourBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>Tour</button>
       </div>
       <div class="legend" id="legend" hidden><i id="legBar"></i><span id="legA"></span><span id="legB"></span></div>
+      <div class="tl"><label for="tlRange">Voltar no tempo</label><input type="range" id="tlRange" min="0" max="120" step="1" value="0"><span id="tlTxt">ao vivo</span><button type="button" id="tlLive" hidden>Voltar ao vivo</button></div>
     </section>
 
     <nav class="flow card" id="flow" aria-label="Fluxo do processo"></nav>
@@ -326,7 +358,7 @@
     { id: 'moagem', nome: 'Recepção e moagem', curto: 'Moagem', pos: [-14, -2], top: 8.4, spark: 2,
       desc: 'A cana chega em caminhões, é pesada, lavada e esmagada nas moendas para extrair o caldo.',
       ind: [
-        { k: 'Moagem hoje', u: 't', v: 67399, d: 0, step: 4 },
+        { k: 'Moagem hoje', u: 't', v: 21000, d: 0, step: 2 },
         { k: 'Fila de recepção (simulado)', u: 'caminhões', v: 0, d: 0 },
         { k: 'ATR médio', u: 'kg/t', v: 138.2, d: 1, n: 0.28 },
         { k: 'Eficiência de extração', u: '%', v: 96.1, d: 1, n: 0.08 } ] },
@@ -348,11 +380,11 @@
     { id: 'destilacao', nome: 'Destilação', curto: 'Destilação', pos: [11.3, 10.8], top: 11.2, spark: 1,
       desc: 'O vinho fermentado é aquecido em colunas, onde o álcool se separa da água e chega ao grau final.',
       ind: [
-        { k: 'Etanol hoje', u: 'm³', v: 1640, d: 0, step: 0.4 },
+        { k: 'Etanol hoje', u: 'm³', v: 1700, d: 0, step: 0.4 },
         { k: 'Pureza', u: '°INPM', v: 93.2, d: 1, n: 0.06 },
         { k: 'Temp. da coluna', u: '°C', v: 78, d: 1, n: 0.4 },
         { k: 'Pressão da coluna', u: 'bar', v: 1.2, d: 2, n: 0.02 },
-        { k: 'Rendimento industrial', u: 'L/t', v: 34.2, d: 1, n: 0.1 },
+        { k: 'Rendimento industrial', u: 'L/t', v: 81, d: 1, n: 0.1 },
         { k: 'Perdas totais', u: '%', v: 13.4, d: 1, n: 0.1 } ] },
     { id: 'expedicao', nome: 'Expedição', curto: 'Expedição', pos: [-5.4, 10.3], top: 7.4, spark: 0,
       desc: 'Etanol e açúcar ficam armazenados e saem em caminhões-tanque e carretas rumo aos clientes.',
@@ -365,7 +397,8 @@
   const byId = Object.fromEntries(STAGES.map((s) => [s.id, s]));
   let T = 0; // tempo da simulação (s)
   // Com a API, o status vem dos alertas ativos do banco; sem ela, regra local do exemplo.
-  let apiOk = false, cena = {}, cenaAlertas = [];
+  let apiOk = false, cena = {}, cenaAlertas = [], histMode = false, forecast = [], selTruck = null;
+  const TANK_CAP = 22000; // m³, capacidade do tanque de etanol
   function statusOf(s) { if (apiOk) return s.alerts && s.alerts.length ? 'warn' : 'ok'; return s.id === 'fermentacao' && s.ind[0].v > 33 ? 'warn' : 'ok'; }
   function tickData() {
     T += 2.5;
@@ -502,6 +535,24 @@
       cyl(1.8, 0.8, C.wall2, -11.5, B + 4.2, z, g, 12, 0.1); });
     cyl(1.3, 5.2, C.wall2, -8.2, B, 7.6, g, 28); }
 
+
+  // nível do estoque (luva verde) e marcador do estoque projetado pela previsão (anel laranja) nos dois tanques
+  const TANK_H = 4.2;
+  const tankFill = [8.6, 12].map((z) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(1.9, 1.9, 1, 32, 1, true), new THREE.MeshStandardMaterial({ color: 0x4ade80, emissive: 0x166534, emissiveIntensity: 0.5, transparent: true, opacity: 0.78 }));
+    m.position.set(-11.5, B, z); groups.expedicao.add(m);
+    const r = new THREE.Mesh(new THREE.CylinderGeometry(1.97, 1.97, 0.1, 32, 1, true), new THREE.MeshBasicMaterial({ color: 0xfb923c, transparent: true, opacity: 0.95 }));
+    r.position.set(-11.5, B, z); r.visible = false; groups.expedicao.add(r);
+    return { m, r };
+  });
+  function setTanks() {
+    const L = clamp(byId.expedicao.ind[0].v / TANK_CAP, 0.02, 1);
+    const proj = forecast.length && !histMode ? clamp((byId.expedicao.ind[0].v + forecast.reduce((a, f) => a + f.previsto, 0) * 0.1) / TANK_CAP, 0.02, 1) : null;
+    tankFill.forEach(({ m, r }) => {
+      m.scale.y = TANK_H * L; m.position.y = B + TANK_H * L / 2;
+      r.visible = proj != null; if (proj != null) r.position.y = B + TANK_H * proj;
+    });
+  }
 
   /* ---------- Acabamento: janelas, passarelas, entorno e luzes ---------- */
   const winMat = new THREE.MeshStandardMaterial({ color: 0x24333c, emissive: 0xffd27a, emissiveIntensity: 0, roughness: 0.6 });
@@ -648,6 +699,7 @@
     ['etanol', 'ETN-0377', 28, 3.5], ['etanol', 'ETN-0378', 6, 0]
   ].map(([kind, id, s, dwell]) => {
     const mesh = makeTruck(kind); scene.add(mesh);
+    mesh.userData.truck = id;
     const t = { kind, id, mesh, s, dwell, served: dwell > 0 ? false : (s > ROUTES[kind].stop), rot: 0, state: '' };
     const p = at(ROUTES[kind], s); t.rot = Math.atan2(-p.dz, p.dx); return t;
   });
@@ -732,6 +784,8 @@
   }
   function renderValues() {
     const s = byId[sel], st = statusOf(s);
+    $('#pStep').textContent = `Etapa ${STAGES.indexOf(s) + 1} de ${STAGES.length}${histMode ? ' · histórico' : ''}`;
+    renderForecast(s);
     $('#pStatus').className = 'pill' + (st === 'warn' ? ' warn' : '');
     $('#pStatus').innerHTML = `<span class="dot ${st === 'warn' ? 'warn' : ''}"></span>${st === 'warn' ? 'Atenção' : 'Em operação'}`;
     $('#pInds').innerHTML = s.ind.map((i, n) => {
@@ -750,6 +804,15 @@
     const end = $('#spEnd'); end.style.left = '100%'; end.style.top = (Y(h[h.length - 1]) / 64 * 100) + '%';
     $('#spark').classList.toggle('hot', st === 'warn');
   }
+  function renderForecast(s) {
+    const fc = $('#fc');
+    if (s.id !== 'expedicao' || !forecast.length || histMode) { fc.hidden = true; return; }
+    const mx = Math.max(...forecast.map((f) => f.maximo)), proj = s.ind[0].v + forecast.reduce((a, f) => a + f.previsto, 0) * 0.1;
+    fc.hidden = false;
+    fc.innerHTML = `<div class="fcT">Previsão de etanol · próximos ${forecast.length} dias (m³/dia)</div><div class="fcB">${forecast.map((f) =>
+      `<div title="${fmt(f.minimo)} a ${fmt(f.maximo)} m³ (intervalo de 80%)"><i style="height:${(f.previsto / mx * 100).toFixed(0)}%"></i><b>${fmt(f.previsto)}</b><small>${f.dia.slice(8)}/${f.dia.slice(5, 7)}</small></div>`).join('')}</div>
+      <div class="fcN">Estoque projetado em ${forecast.length} dias: <b>${fmt(proj)} m³</b> (${fmt(proj / TANK_CAP * 100)}% do tanque), supondo saídas de 90% da produção prevista.</div>`;
+  }
   function renderLive() {
     STAGES.forEach((s) => {
       const st = statusOf(s), i = s.ind[0];
@@ -762,18 +825,39 @@
       ['Moagem hoje', fmt(m[0].v, 0), 't'], ['ATR médio', fmt(m[2].v, 1), 'kg/t'],
       ['Etanol hoje', fmt(d[0].v, 0), 'm³'], ['Rendimento industrial', fmt(d[4].v, 1), 'L/t'],
       ['Efic. fermentação', fmt(byId.fermentacao.ind[4].v, 1), '%'], ['Pátio (simulado)', String(trucks.length), ''] ]
-      .map(([k, v, u]) => `<div class="kpi card"><span>${k}</span><b>${v}<i>${u}</i></b></div>`).join('');
+      .map(([k, v, u]) => `<div class="kpi card"><span>${k}${histMode ? ' · histórico' : ''}</span><b>${v}<i>${u}</i></b></div>`).join('');
     const al = apiOk ? cenaAlertas : (statusOf(byId.fermentacao) === 'warn' ? [{ mensagem: `Dorna 3 a ${fmt(byId.fermentacao.ind[0].v, 1)} °C, acima de 33 °C` }] : []);
     $('#alert').classList.toggle('on', al.length > 0);
     if (al.length) $('#alertTxt').textContent = al[0].mensagem + (al.length > 1 ? ` (+${al.length - 1})` : '');
-    renderValues(); refreshLayer();
+    setTanks(); renderValues(); refreshLayer();
   }
   function renderYard() {
     const dot = (s) => (s === 'Descarregando' || s === 'Carregando') ? '' : (s === 'Na fila' || s === 'Aguardando') ? 'info' : '';
     $('#yard').innerHTML = trucks.map((t) => `<tr><td>${t.id}</td><td>${t.kind === 'cana' ? 'Cana' : 'Etanol'}</td><td><span class="dot ${dot(t.state)}"></span>${t.state}</td></tr>`).join('');
+    if (selTruck) renderTruck();
     $('#yardCount').textContent = `${trucks.length} caminhões · simulado`;
     byId.moagem.ind[1].v = trucks.filter((t) => t.kind === 'cana' && (t.state === 'Na fila' || t.state === 'Descarregando')).length;
     byId.expedicao.ind[1].v = trucks.filter((t) => t.kind === 'etanol' && t.state === 'Carregando').length;
+  }
+
+  /* ---------- Cartão do caminhão (dados simulados) ---------- */
+  const DESTINOS = ['Paulínia (SP)', 'Santos (SP)', 'Ribeirão Preto (SP)', 'Maringá (PR)', 'Londrina (PR)'];
+  const hashId = (t) => [...t].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+  function showTruck(id) { selTruck = id; renderTruck(); }
+  function renderTruck() {
+    const el = $('#tcard'), t = trucks.find((x) => x.id === selTruck);
+    el.hidden = !t; if (!t) return;
+    const h = hashId(t.id), R = ROUTES[t.kind], cana = t.kind === 'cana', sp = 6;
+    const carga = cana ? `${30 + h % 14} t de cana` : `${28 + h % 8} m³ de etanol ${h % 2 ? 'hidratado' : 'anidro'}`;
+    const destino = cana ? 'Recepção e moagem' : DESTINOS[h % DESTINOS.length];
+    let eta;
+    if (t.dwell > 0) eta = `${cana ? 'Descarregando' : 'Carregando'}, termina em ~${Math.ceil(t.dwell)} s`;
+    else if (!t.served) eta = `Chega ${cana ? 'à moenda' : 'ao carregamento'} em ~${Math.ceil(Math.max(0, R.stop - t.s) / sp)} s`;
+    else eta = cana ? 'Já descarregou, saindo da usina' : `Saiu; chega em ~${50 + h % 90} min`;
+    el.innerHTML = `<div class="th"><b>${t.id}</b><button type="button" id="tcClose" aria-label="Fechar">Fechar</button></div>
+      <dl><dt>Tipo</dt><dd>${cana ? 'Cana (treminhão)' : 'Caminhão-tanque'}</dd><dt>Carga</dt><dd>${carga}</dd><dt>Destino</dt><dd>${destino}</dd><dt>Situação</dt><dd>${t.state}</dd><dt>ETA</dt><dd>${eta}</dd></dl>
+      <small>Dados simulados no navegador.</small>`;
+    $('#tcClose').onclick = () => { selTruck = null; renderTruck(); };
   }
 
   /* ---------- Interação ---------- */
@@ -794,8 +878,12 @@
     if (!d || d.moved) return;
     const r = cv.getBoundingClientRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
-    const hit = ray.intersectObjects(Object.values(groups), true)[0];
-    if (hit) { let o = hit.object; while (o && !o.userData.stage) o = o.parent; if (o) select(o.userData.stage, true); }
+    const hit = ray.intersectObjects([...trucks.map((t) => t.mesh), ...Object.values(groups)], true)[0];
+    if (hit) {
+      let o = hit.object; while (o && !o.userData.stage && !o.userData.truck) o = o.parent;
+      if (o && o.userData.truck) showTruck(o.userData.truck);
+      else if (o) { selTruck = null; renderTruck(); select(o.userData.stage, true); }
+    }
   });
   cv.addEventListener('wheel', (e) => { e.preventDefault(); goal.zoom = clamp(goal.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12), 0.7, 3.2); }, { passive: false });
   $('#zIn').onclick = () => { goal.zoom = clamp(goal.zoom * 1.25, 0.7, 3.2); };
@@ -938,7 +1026,8 @@
 
   /* ---------- API (consulta a cada 10 s, com fallback para o exemplo) ---------- */
   const getJson = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); });
-  function applyApi(et, kp, cn, hs, ix, al) {
+  function applyApi(et, kp, cn, hs, ix, al, pv) {
+    forecast = pv || [];
     const E = (nome) => et.find((e) => e.etapa === nome), K = (id) => kp.find((k) => k.indicador === id);
     const put = (s, n, v, k, u) => { const i = s.ind[n]; if (v != null) i.v = v; if (k) i.k = k; if (u != null) i.u = u; };
     const ev = (e, nome) => { for (let n = 1; n <= 4; n++) if (e['ind' + n] === nome) return { v: e['val' + n], u: e['un' + n] }; return {}; };
@@ -962,19 +1051,95 @@
     put(byId.destilacao, 4, I.rendimento); put(byId.destilacao, 5, I.perdas);
     cena = cn.etapas; cenaAlertas = cn.alertas; alarmes = al;
   }
-  function setSource(ok) {
+  function setSource(ok, via) {
     apiOk = ok;
-    $('#srcTxt').textContent = ok ? 'Ao vivo · API' : 'Exemplo (sem API)';
+    $('#srcTxt').textContent = ok ? 'Ao vivo · ' + (via || 'API') : 'Exemplo (sem API)';
     $('#srcNote').textContent = ok ? 'Dados fictícios gerados pelo simulador da usina (API local). Pátio de caminhões simulado no navegador.' : 'Dados fictícios de demonstração, gerados no navegador.';
   }
   function poll() {
+    if (histMode || Date.now() - lastWs < 15000) return; // em modo histórico ou com o WebSocket ativo não consulta
     Promise.all([getJson('/api/etapas'), getJson('/api/kpis'), getJson('/api/cena'), getJson('/api/historico?minutos=5'),
-      getJson('/api/indicadores'), getJson('/api/alarmes?limite=20')])
-      .then(([et, kp, cn, hs, ix, al]) => { applyApi(et, kp, cn, hs, ix, al); setSource(true); })
+      getJson('/api/indicadores'), getJson('/api/alarmes?limite=20'), getJson('/api/previsao')])
+      .then(([et, kp, cn, hs, ix, al, pv]) => { applyApi(et, kp, cn, hs, ix, al, pv); setSource(true); })
       .catch(() => { if (apiOk) STAGES.forEach((s) => { s.alerts = undefined; }); setSource(false); })
       .then(() => { renderLive(); renderAlarms(); });
   }
-  poll(); setInterval(poll, 10000);
+  /* WebSocket (/ws) com fallback automático para a consulta a cada 10 s */
+  let lastWs = 0;
+  function connectWs() {
+    if (!/^https?:$/.test(location.protocol)) return;
+    let ws;
+    try { ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws'); } catch (e) { return; }
+    ws.onmessage = (m) => {
+      try {
+        const d = JSON.parse(m.data); lastWs = Date.now();
+        if (histMode) return;
+        applyApi(d.etapas, d.kpis, d.cena, d.historico, d.indicadores, d.alarmes, d.previsao);
+        setSource(true, 'WebSocket'); renderLive(); renderAlarms();
+      } catch (e) { /* mensagem inválida: ignora */ }
+    };
+    ws.onclose = () => { lastWs = 0; setTimeout(connectWs, 15000); };
+    ws.onerror = () => { try { ws.close(); } catch (e) { /* já fechado */ } };
+  }
+
+  /* Linha do tempo: volta até 120 min usando /api/historico?minutos=N&detalhe=true */
+  let histData = null, histAt = 0;
+  const putInd = (s, n, v) => { if (v != null) s.ind[n].v = v; };
+  function loadHist() {
+    if (histData && Date.now() - histAt < 60000) return Promise.resolve(histData);
+    return getJson('/api/historico?minutos=120&detalhe=true').then((d) => { histData = d; histAt = Date.now(); return d; });
+  }
+  function showAt(n, d) {
+    const snaps = d.instantaneos || []; if (!snaps.length) return;
+    const t = (x) => new Date(x.ts).getTime(), alvo = t(snaps[snaps.length - 1]) - n * 60000;
+    const snap = snaps.reduce((b, x) => Math.abs(t(x) - alvo) < Math.abs(t(b) - alvo) ? x : b);
+    const V = (e, k) => snap.v[e + '|' + k];
+    const R = 'Recepção e moagem', C = 'Tratamento do caldo', F = 'Fermentação', D = 'Destilação', X = 'Expedição';
+    putInd(byId.moagem, 0, V(R, 'Cana processada')); putInd(byId.moagem, 2, V('Indicadores gerais', 'ATR')); putInd(byId.moagem, 3, V(R, 'Extração'));
+    putInd(byId.caldo, 0, V(C, 'Brix médio')); putInd(byId.caldo, 1, V(C, 'pH do caldo')); putInd(byId.caldo, 2, V(C, 'Temperatura')); putInd(byId.caldo, 3, V(C, 'Vazão'));
+    putInd(byId.fermentacao, 0, V(F, 'Temperatura da dorna 3')); putInd(byId.fermentacao, 1, V(F, 'Teor alcoólico'));
+    putInd(byId.fermentacao, 3, V(F, 'Tempo de ciclo')); putInd(byId.fermentacao, 4, V(F, 'Eficiência de fermentação'));
+    putInd(byId.destilacao, 0, V(D, 'Hidratado') + V(D, 'Anidro')); putInd(byId.destilacao, 1, V(D, 'Pureza do hidratado'));
+    putInd(byId.destilacao, 2, V(D, 'Temperatura da coluna')); putInd(byId.destilacao, 3, V(D, 'Consumo de vapor'));
+    putInd(byId.destilacao, 4, V('Indicadores gerais', 'Rendimento industrial')); putInd(byId.destilacao, 5, V('Indicadores gerais', 'Perdas totais'));
+    putInd(byId.expedicao, 0, V(X, 'Etanol em tanque')); putInd(byId.expedicao, 2, V(X, 'Caminhões carregados')); putInd(byId.expedicao, 3, V(X, 'Açúcar VHP'));
+    STAGES.forEach((s) => {
+      s.alerts = snap.cena.etapas[s.id].alertas;
+      const serie = ((d.series[s.id]) || []).filter((p) => new Date(p.ts).getTime() <= t(snap) + 59000).slice(-30).map((p) => p.v);
+      if (serie.length >= 2) s.hist = serie;
+    });
+    cena = snap.cena.etapas; cenaAlertas = snap.cena.alertas;
+    histMode = true;
+    const hh = new Date(snap.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    $('#srcTxt').textContent = `Histórico · ${hh}`; $('#tlTxt').textContent = `−${n} min`; $('#tlLive').hidden = false;
+    $('#srcNote').textContent = 'Mostrando dados gravados no banco (histórico). Pátio de caminhões simulado.';
+    renderLive();
+  }
+  function goLive() {
+    histMode = false; $('#tlRange').value = 0; $('#tlTxt').textContent = 'ao vivo'; $('#tlLive').hidden = true;
+    lastWs = 0; poll();
+  }
+  $('#tlRange').addEventListener('input', (e) => {
+    const n = +e.target.value; if (!n) return goLive();
+    if (!apiOk && !histMode) { e.target.value = 0; $('#tlTxt').textContent = 'sem API'; return; }
+    loadHist().then((d) => showAt(n, d)).catch(() => { e.target.value = 0; $('#tlTxt').textContent = 'sem API'; });
+  });
+  $('#tlLive').onclick = goLive;
+
+  /* Pergunte à usina */
+  let bubbleT = 0;
+  $('#bubble').onclick = () => { $('#bubble').hidden = true; };
+  $('#ask').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const q = $('#askIn').value.trim(), b = $('#bubble'); if (!q) return;
+    const dizer = (t) => { b.textContent = t; b.hidden = false; clearTimeout(bubbleT); bubbleT = setTimeout(() => { b.hidden = true; }, 30000); };
+    fetch('/api/perguntar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pergunta: q }) })
+      .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then((r) => { dizer(r.resposta); if (r.etapa && byId[r.etapa]) { selTruck = null; renderTruck(); select(r.etapa, true); } })
+      .catch(() => dizer('Sem conexão com a API: a pergunta precisa do banco da usina.'));
+  });
+
+  poll(); setInterval(poll, 10000); connectWs();
   requestAnimationFrame(frame);
 })();
 </script>

@@ -1,12 +1,12 @@
 [
  {
   "indicador": "moagem",
-  "valor": 47350,
+  "valor": 21000,
   "unidade": "t/dia",
-  "meta": 55000,
+  "meta": 24000,
   "delta_pct": -0.8,
   "janela": "vs. dia anterior",
-  "atingimento_pct": 86.1,
+  "atingimento_pct": 87.5,
   "situacao": "Dentro da capacidade"
  },
  {
@@ -21,12 +21,12 @@
  },
  {
   "indicador": "etanol",
-  "valor": 1620,
+  "valor": 1700,
   "unidade": "m³/dia",
-  "meta": 1550,
+  "meta": 1650,
   "delta_pct": -1.9,
   "janela": "vs. dia anterior",
-  "atingimento_pct": 104.5,
+  "atingimento_pct": 103.0,
   "situacao": "Acima da meta"
  },
  {

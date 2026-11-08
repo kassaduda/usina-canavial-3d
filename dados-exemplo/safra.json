@@ -2,10 +2,10 @@
  {
   "id": "cana",
   "indicador": "Cana processada",
-  "acumulado": 9240000,
-  "meta": 12500000,
+  "acumulado": 4000000,
+  "meta": 5500000,
   "unidade": "t",
-  "progresso_pct": 73.9
+  "progresso_pct": 72.7
  },
  {
   "id": "etanol",

@@ -1,211 +1,211 @@
 [
  {
   "dia": "2026-09-18",
-  "moagem_t": 44950,
-  "etanol_m3": 1540,
+  "moagem_t": 19940,
+  "etanol_m3": 1616,
   "acucar_t": 2092,
   "atr_kg_t": 139.0
  },
  {
   "dia": "2026-09-19",
-  "moagem_t": 45290,
-  "etanol_m3": 1553,
+  "moagem_t": 20090,
+  "etanol_m3": 1630,
   "acucar_t": 2065,
   "atr_kg_t": 139.3
  },
  {
   "dia": "2026-09-20",
-  "moagem_t": 45970,
-  "etanol_m3": 1585,
+  "moagem_t": 20390,
+  "etanol_m3": 1663,
   "acucar_t": 2092,
   "atr_kg_t": 138.3
  },
  {
   "dia": "2026-09-21",
-  "moagem_t": 43210,
-  "etanol_m3": 1491,
+  "moagem_t": 19160,
+  "etanol_m3": 1565,
   "acucar_t": 1998,
   "atr_kg_t": 137.0
  },
  {
   "dia": "2026-09-22",
-  "moagem_t": 47890,
-  "etanol_m3": 1658,
+  "moagem_t": 21240,
+  "etanol_m3": 1740,
   "acucar_t": 2211,
   "atr_kg_t": 139.8
  },
  {
   "dia": "2026-09-23",
-  "moagem_t": 43640,
-  "etanol_m3": 1471,
+  "moagem_t": 19350,
+  "etanol_m3": 1544,
   "acucar_t": 2009,
   "atr_kg_t": 137.1
  },
  {
   "dia": "2026-09-24",
-  "moagem_t": 43860,
-  "etanol_m3": 1489,
+  "moagem_t": 19450,
+  "etanol_m3": 1563,
   "acucar_t": 1991,
   "atr_kg_t": 139.0
  },
  {
   "dia": "2026-09-25",
-  "moagem_t": 45210,
-  "etanol_m3": 1561,
+  "moagem_t": 20050,
+  "etanol_m3": 1638,
   "acucar_t": 2081,
   "atr_kg_t": 139.9
  },
  {
   "dia": "2026-09-26",
-  "moagem_t": 45560,
-  "etanol_m3": 1565,
+  "moagem_t": 20210,
+  "etanol_m3": 1642,
   "acucar_t": 2093,
   "atr_kg_t": 138.1
  },
  {
   "dia": "2026-09-27",
-  "moagem_t": 48190,
-  "etanol_m3": 1670,
+  "moagem_t": 21370,
+  "etanol_m3": 1752,
   "acucar_t": 2236,
   "atr_kg_t": 140.2
  },
  {
   "dia": "2026-09-28",
-  "moagem_t": 44690,
-  "etanol_m3": 1516,
+  "moagem_t": 19820,
+  "etanol_m3": 1591,
   "acucar_t": 2044,
   "atr_kg_t": 137.1
  },
  {
   "dia": "2026-09-29",
-  "moagem_t": 47080,
-  "etanol_m3": 1606,
+  "moagem_t": 20880,
+  "etanol_m3": 1685,
   "acucar_t": 2185,
   "atr_kg_t": 138.7
  },
  {
   "dia": "2026-09-30",
-  "moagem_t": 48120,
-  "etanol_m3": 1661,
+  "moagem_t": 21340,
+  "etanol_m3": 1743,
   "acucar_t": 2186,
   "atr_kg_t": 137.8
  },
  {
   "dia": "2026-10-01",
-  "moagem_t": 47920,
-  "etanol_m3": 1637,
+  "moagem_t": 21250,
+  "etanol_m3": 1718,
   "acucar_t": 2231,
   "atr_kg_t": 138.7
  },
  {
   "dia": "2026-10-02",
-  "moagem_t": 43610,
-  "etanol_m3": 1497,
+  "moagem_t": 19340,
+  "etanol_m3": 1571,
   "acucar_t": 2022,
   "atr_kg_t": 138.1
  },
  {
   "dia": "2026-10-03",
-  "moagem_t": 43730,
-  "etanol_m3": 1488,
+  "moagem_t": 19390,
+  "etanol_m3": 1561,
   "acucar_t": 2037,
   "atr_kg_t": 140.4
  },
  {
   "dia": "2026-10-04",
-  "moagem_t": 43930,
-  "etanol_m3": 1491,
+  "moagem_t": 19480,
+  "etanol_m3": 1565,
   "acucar_t": 1999,
   "atr_kg_t": 137.1
  },
  {
   "dia": "2026-10-05",
-  "moagem_t": 47510,
-  "etanol_m3": 1611,
+  "moagem_t": 21070,
+  "etanol_m3": 1691,
   "acucar_t": 2189,
   "atr_kg_t": 138.9
  },
  {
   "dia": "2026-10-06",
-  "moagem_t": 44400,
-  "etanol_m3": 1529,
+  "moagem_t": 19690,
+  "etanol_m3": 1605,
   "acucar_t": 2022,
   "atr_kg_t": 139.9
  },
  {
   "dia": "2026-10-07",
-  "moagem_t": 44060,
-  "etanol_m3": 1503,
+  "moagem_t": 19540,
+  "etanol_m3": 1577,
   "acucar_t": 2011,
   "atr_kg_t": 138.1
  },
  {
   "dia": "2026-10-08",
-  "moagem_t": 29800,
-  "etanol_m3": 1033,
+  "moagem_t": 13220,
+  "etanol_m3": 1084,
   "acucar_t": 1360,
   "atr_kg_t": 141.0
  },
  {
   "dia": "2026-10-09",
-  "moagem_t": 34100,
-  "etanol_m3": 1162,
+  "moagem_t": 15120,
+  "etanol_m3": 1219,
   "acucar_t": 1588,
   "atr_kg_t": 139.9
  },
  {
   "dia": "2026-10-10",
-  "moagem_t": 44110,
-  "etanol_m3": 1530,
+  "moagem_t": 19560,
+  "etanol_m3": 1606,
   "acucar_t": 2013,
   "atr_kg_t": 138.0
  },
  {
   "dia": "2026-10-11",
-  "moagem_t": 47650,
-  "etanol_m3": 1622,
+  "moagem_t": 21130,
+  "etanol_m3": 1702,
   "acucar_t": 2181,
   "atr_kg_t": 137.2
  },
  {
   "dia": "2026-10-12",
-  "moagem_t": 44150,
-  "etanol_m3": 1514,
+  "moagem_t": 19580,
+  "etanol_m3": 1589,
   "acucar_t": 2016,
   "atr_kg_t": 139.7
  },
  {
   "dia": "2026-10-13",
-  "moagem_t": 45660,
-  "etanol_m3": 1559,
+  "moagem_t": 20250,
+  "etanol_m3": 1636,
   "acucar_t": 2126,
   "atr_kg_t": 139.1
  },
  {
   "dia": "2026-10-14",
-  "moagem_t": 46760,
-  "etanol_m3": 1615,
+  "moagem_t": 20740,
+  "etanol_m3": 1695,
   "acucar_t": 2133,
   "atr_kg_t": 137.5
  },
  {
   "dia": "2026-10-15",
-  "moagem_t": 48540,
-  "etanol_m3": 1674,
+  "moagem_t": 21530,
+  "etanol_m3": 1757,
   "acucar_t": 2219,
   "atr_kg_t": 137.7
  },
  {
   "dia": "2026-10-16",
-  "moagem_t": 47710,
-  "etanol_m3": 1651,
+  "moagem_t": 21160,
+  "etanol_m3": 1733,
   "acucar_t": 2177,
   "atr_kg_t": 141.4
  },
  {
   "dia": "2026-10-17",
-  "moagem_t": 47350,
-  "etanol_m3": 1620,
+  "moagem_t": 21000,
+  "etanol_m3": 1700,
   "acucar_t": 2180,
   "atr_kg_t": 141.2
  }
