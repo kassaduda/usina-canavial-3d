@@ -2,8 +2,11 @@
 
 Painel web em vista 3D isométrica que acompanha uma usina de cana-de-açúcar, da moagem à expedição. A cena, os indicadores e os alarmes são alimentados por uma API real (FastAPI + SQLite) e por um simulador. O painel 2D original continua disponível em `/2d`.
 
-![Painel 2D (rota /2d)](docs/painel.png)
-*Painel 2D original (rota `/2d`): fluxo do processo, KPIs, produção por dia e alertas.*
+![Painel 3D da usina](docs/painel3d.png)
+*Vista 3D da usina com alerta da dorna 3.*
+
+![Detalhe da fermentação](docs/fermentacao-alerta.png)
+*Detalhe da fermentação: dorna 3 acima do limite de temperatura.*
 
 ![Previsão de etanol](docs/previsao.png)
 *Previsão de etanol para os próximos 5 dias, com intervalo de confiança de 80%.*
@@ -27,7 +30,11 @@ Painel web em vista 3D isométrica que acompanha uma usina de cana-de-açúcar, 
 - **Tour guiado** com legendas.
 - **Tempo real por WebSocket** (`/ws`), com volta automática para a consulta a cada 10 segundos e, se a API cair, para os dados de exemplo.
 
-O painel 2D (`/2d`) mantém KPIs, produção diária, previsão, mix de ATR e progresso da safra.
+## Painel 2D (versão anterior)
+
+A versão 2D continua disponível em `/2d`, com KPIs, produção diária, previsão, mix de ATR e progresso da safra.
+
+![Painel 2D (rota /2d)](docs/painel.png)
 
 ## Tecnologias
 
