@@ -9,6 +9,7 @@ por regra (ver REGRAS em banco.py).
     python simulador.py --ciclos 5       # faz 5 ciclos e sai
 """
 import argparse
+import math
 import random
 import time
 from datetime import datetime, timedelta
@@ -59,6 +60,27 @@ class Simulador:
             novo = self.valores[chave] + REVERSAO * (x["alvo"] - self.valores[chave]) \
                 + random.gauss(0, x["ruido"] * x["alvo"])
             self.valores[chave] = round(max(novo, 0), x["casas"])
+        self.valores[("Fermentação", "Temperatura da dorna 3")] = self.dorna3()
+        self.derivados()
+
+    def derivados(self) -> None:
+        """Indicadores do setor, coerentes entre si e com a moagem.
+
+        Fermentação perde eficiência quando a dorna 3 passa de 33 °C; as perdas totais somam
+        extração, fermentação e destilação (99,5%); o rendimento é o etanol do dia por tonelada moída.
+        """
+        extracao = self.v("Recepção e moagem", "Extração")
+        ferm = 90.5 - 1.8 * max(0.0, self.v("Fermentação", "Temperatura da dorna 3") - 33) + random.gauss(0, 0.1)
+        ferm = min(max(ferm, 80.0), 95.0)
+        etanol = self.v("Destilação", "Hidratado") + self.v("Destilação", "Anidro")
+        self.valores[("Fermentação", "Eficiência de fermentação")] = round(ferm, 1)
+        self.valores[("Indicadores gerais", "Perdas totais")] = round(100 - extracao * ferm * 0.995 / 100, 1)
+        self.valores[("Indicadores gerais", "Rendimento industrial")] =             round(etanol * 1000 / self.v("Recepção e moagem", "Cana processada"), 1)
+
+    def dorna3(self) -> float:
+        """Dorna 3 oscila entre 32,6 e 34,6 °C (ciclo de 6 min), ~80% do tempo acima de 33 °C."""
+        u = (1 + math.sin(2 * math.pi * time.time() / 360)) / 2
+        return round(32.6 + 2.0 * u ** 0.685 + random.gauss(0, 0.02), 1)
 
     def gravar_leituras(self, s: Session, agora: datetime) -> None:
         s.add_all(LeituraSensor(ts=agora, etapa=e, sensor=n, valor=self.valores[(e, n)], unidade=x["unidade"])
@@ -82,10 +104,11 @@ class Simulador:
                 continue
             self.em_alarme[r["id"]] = novo
             texto = (r["texto"] if novo else r["texto_ok"]).format(valor=fmt_br(valor, self.specs[chave]["casas"]))
-            s.add(Ocorrencia(ts=agora, nivel="Atenção" if novo else "OK", area=r["area"], mensagem=texto))
+            s.add(Ocorrencia(ts=agora, nivel="Atenção" if novo else "OK", area=r["area"], mensagem=texto,
+                             prioridade=r["prioridade"] if novo else "info", regra=r["id"]))
         if random.random() < CHANCE_INFO:
             area, texto = random.choice(INFO_SORTEIO)
-            s.add(Ocorrencia(ts=agora, nivel="Info", area=area, mensagem=texto))
+            s.add(Ocorrencia(ts=agora, nivel="Info", area=area, mensagem=texto, prioridade="info"))
 
     def acumular_safra(self, s: Session, agora: datetime, dt: float) -> None:
         taxas = {  # por dia

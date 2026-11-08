@@ -145,11 +145,53 @@ def mix(s: Session = Sessao):
     return itens
 
 
+def ocorrencia(o: Ocorrencia) -> dict:
+    """Alarme com prioridade e dados de reconhecimento (campos extras além do formato antigo)."""
+    ack = o.reconhecido_em
+    return dict(id=f"a{o.id}", hora=o.ts.strftime("%H:%M"), nivel=o.nivel, area=o.area, mensagem=o.mensagem,
+                prioridade=o.prioridade or "info", ts=o.ts.isoformat(timespec="seconds"),
+                reconhecido=ack is not None,
+                reconhecido_em=ack.isoformat(timespec="seconds") if ack else None,
+                segundos_ate_reconhecer=round((ack - o.ts).total_seconds()) if ack else None)
+
+
 @app.get("/api/alertas")
 def alertas(s: Session = Sessao):
     linhas = s.scalars(select(Ocorrencia).order_by(Ocorrencia.ts.desc(), Ocorrencia.id.desc()).limit(6))
-    return [dict(id=f"a{o.id}", hora=o.ts.strftime("%H:%M"), nivel=o.nivel, area=o.area,
-                 mensagem=o.mensagem) for o in linhas]
+    return [ocorrencia(o) for o in linhas]
+
+
+@app.get("/api/alarmes")
+def alarmes(limite: int = 30, s: Session = Sessao):
+    """Histórico de alarmes (mais recentes primeiro) com prioridade e tempo até o reconhecimento."""
+    linhas = s.scalars(select(Ocorrencia).order_by(Ocorrencia.ts.desc(), Ocorrencia.id.desc())
+                       .limit(max(1, min(limite, 200))))
+    return [ocorrencia(o) for o in linhas]
+
+
+@app.post("/api/alertas/{alerta_id}/reconhecer")
+def reconhecer(alerta_id: str, s: Session = Sessao):
+    try:
+        o = s.get(Ocorrencia, int(alerta_id.lstrip("a")))
+    except ValueError:
+        o = None
+    if o is None:
+        raise HTTPException(404, "Alarme não encontrado")
+    if o.reconhecido_em is None:  # reconhecer de novo não muda o tempo já registrado
+        o.reconhecido_em = datetime.now()
+        s.commit()
+    return ocorrencia(o)
+
+
+@app.get("/api/indicadores")
+def indicadores(s: Session = Sessao):
+    """Indicadores do setor sucroenergético calculados pelo simulador."""
+    atuais = leituras_atuais(s)
+    itens = [("rendimento", "Rendimento industrial", "Indicadores gerais", "Rendimento industrial", "L/t"),
+             ("ef_fermentacao", "Eficiência de fermentação", "Fermentação", "Eficiência de fermentação", "%"),
+             ("ef_extracao", "Eficiência de extração", "Recepção e moagem", "Extração", "%"),
+             ("perdas", "Perdas totais", "Indicadores gerais", "Perdas totais", "%")]
+    return [dict(id=i, nome=n, valor=atuais[(e, sn)], unidade=u) for i, n, e, sn, u in itens if (e, sn) in atuais]
 
 
 @app.get("/api/safra")
@@ -172,6 +214,7 @@ def alertas_ativos(atuais: dict) -> list[dict]:
         if valor is not None and em_alarme(r, valor):
             casas = 0 if r["sensor"] == "Pressão de vapor" else 1
             ativos.append(dict(id=r["id"], etapa=r["etapa"], area=r["area"], valor=valor,
+                               prioridade=r["prioridade"],
                                mensagem=r["texto"].format(valor=fmt_br(valor, casas))))
     return ativos
 
@@ -181,6 +224,11 @@ def cena(s: Session = Sessao):
     """Dados das camadas do painel 3D: temperatura/limite, produção/capacidade e alertas ativos."""
     atuais = leituras_atuais(s)
     ativos = alertas_ativos(atuais)
+    for a in ativos:  # liga o alarme ativo ao registro no banco (para reconhecer)
+        o = s.scalars(select(Ocorrencia).where(Ocorrencia.regra == a["id"], Ocorrencia.nivel == "Atenção")
+                      .order_by(Ocorrencia.id.desc())).first()
+        a.update(alarme_id=f"a{o.id}" if o else None, reconhecido=bool(o and o.reconhecido_em),
+                 segundos_ate_reconhecer=ocorrencia(o)["segundos_ate_reconhecer"] if o else None)
     etapas_cena = {}
     for id_, nome in ETAPAS_3D.items():
         limite, sensor = LIMITES_TEMP[id_]

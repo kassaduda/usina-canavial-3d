@@ -53,6 +53,9 @@ class Ocorrencia(Base):
     nivel: Mapped[str] = mapped_column(String(10))  # Atenção | Info | OK
     area: Mapped[str] = mapped_column(String(40))
     mensagem: Mapped[str] = mapped_column(String(200))
+    prioridade: Mapped[str] = mapped_column(String(10), default="info")  # critico | atencao | info
+    regra: Mapped[str | None] = mapped_column(String(30), default=None)  # id da regra que gerou
+    reconhecido_em: Mapped[datetime | None] = mapped_column(DateTime, default=None)
 
 
 class HistoricoSafra(Base):
@@ -110,6 +113,10 @@ def sensores() -> list[dict]:
         ("Indicadores gerais", "Açúcar produzido", "t/dia", 2180, 0, 0.003),
         ("Indicadores gerais", "Faturamento", "R$ mi", 64.8, 1, 0.002),
         ("Utilidades", "Pressão de vapor", "bar", 42.0, 1, 0.006),
+        # Indicadores do setor: o simulador recalcula a cada ciclo (ver Simulador.derivados).
+        ("Fermentação", "Eficiência de fermentação", "%", 90.5, 1, 0.001),
+        ("Indicadores gerais", "Perdas totais", "%", 13.4, 1, 0.001),
+        ("Indicadores gerais", "Rendimento industrial", "L/t", 34.2, 1, 0.001),
         # Temperaturas que faltavam para a camada de temperatura do painel 3D.
         ("Recepção e moagem", "Temperatura do caldo", "°C", 32.5, 1, 0.01),
         ("Destilação", "Temperatura da coluna", "°C", 78.0, 1, 0.004),
@@ -157,9 +164,9 @@ SENSOR_GRAFICO = {
 
 # ---------------------------------------------------------------- regras
 
-def _regra(id, etapa, sensor, area, tipo, limite, texto, texto_ok, histerese, detalhe=""):
+def _regra(id, etapa, sensor, area, tipo, limite, texto, texto_ok, histerese, detalhe="", prioridade="atencao"):
     return dict(id=id, etapa=etapa, sensor=sensor, area=area, tipo=tipo, limite=limite,
-                texto=texto, texto_ok=texto_ok, histerese=histerese, detalhe=detalhe)
+                texto=texto, texto_ok=texto_ok, histerese=histerese, detalhe=detalhe, prioridade=prioridade)
 
 
 REGRAS = [
@@ -171,7 +178,8 @@ REGRAS = [
         for n in TEMP_DORNAS
     ],
     _regra("ph_baixo", "Tratamento do caldo", "pH do caldo", "Tratamento", "min", 5.0,
-           "pH do caldo abaixo da faixa ({valor})", "pH do caldo de volta à faixa ({valor})", 0.1),
+           "pH do caldo abaixo da faixa ({valor})", "pH do caldo de volta à faixa ({valor})", 0.1,
+           prioridade="critico"),
     _regra("ph_alto", "Tratamento do caldo", "pH do caldo", "Tratamento", "max", 5.8,
            "pH do caldo acima da faixa ({valor})", "pH do caldo de volta à faixa ({valor})", 0.1),
     _regra("extracao", "Recepção e moagem", "Extração", "Moagem", "min", 94.5,
@@ -179,10 +187,13 @@ REGRAS = [
     _regra("umidade_bagaco", "Recepção e moagem", "Umidade do bagaço", "Moagem", "max", 52.0,
            "Umidade do bagaço alta ({valor} %)", "Umidade do bagaço normalizada ({valor} %)", 0.5),
     _regra("vapor", "Utilidades", "Pressão de vapor", "Caldeira", "min", 40.0,
-           "Pressão de vapor baixa ({valor} bar)", "Pressão de vapor estabilizada em {valor} bar", 0.5),
+           "Pressão de vapor baixa ({valor} bar)", "Pressão de vapor estabilizada em {valor} bar", 0.5,
+           prioridade="critico"),
     _regra("pureza", "Destilação", "Pureza do hidratado", "Destilação", "min", 95.5,
            "Pureza do hidratado abaixo do limite ({valor} °GL)",
-           "Pureza do hidratado normalizada ({valor} °GL)", 0.2),
+           "Pureza do hidratado normalizada ({valor} °GL)", 0.2, prioridade="critico"),
+    _regra("ef_ferm", "Fermentação", "Eficiência de fermentação", "Fermentação", "min", 88.0,
+           "Eficiência de fermentação baixa ({valor} %)", "Eficiência de fermentação recuperada ({valor} %)", 0.3),
     _regra("fila", "Expedição", "Fila média", "Expedição", "max", 60.0,
            "Fila de caminhões maior que a média no turno ({valor} min)",
            "Fila de caminhões normalizada ({valor} min)", 5.0),
@@ -207,9 +218,25 @@ INFO_SORTEIO = [
 ]
 
 
+def migrar() -> None:
+    """Acrescenta ao banco antigo as colunas de gestão de alarmes (create_all não altera tabelas)."""
+    with engine.begin() as c:
+        colunas = {r[1] for r in c.exec_driver_sql("PRAGMA table_info(registro_ocorrencias)")}
+        if "prioridade" not in colunas:
+            c.exec_driver_sql("ALTER TABLE registro_ocorrencias ADD COLUMN prioridade VARCHAR(10) DEFAULT 'info'")
+            c.exec_driver_sql("UPDATE registro_ocorrencias SET prioridade='atencao' WHERE nivel='Atenção'")
+        if "regra" not in colunas:
+            c.exec_driver_sql("ALTER TABLE registro_ocorrencias ADD COLUMN regra VARCHAR(30)")
+            c.exec_driver_sql("UPDATE registro_ocorrencias SET regra='dorna3' WHERE nivel='Atenção' "
+                              "AND mensagem LIKE 'Temperatura da dorna 3%'")
+        if "reconhecido_em" not in colunas:
+            c.exec_driver_sql("ALTER TABLE registro_ocorrencias ADD COLUMN reconhecido_em DATETIME")
+
+
 def semear() -> None:
     """Cria as tabelas e preenche as vazias com os JSONs de dados-exemplo."""
     Base.metadata.create_all(engine)
+    migrar()
     agora = datetime.now()
     with Session(engine) as s:
         if not s.scalar(select(func.count()).select_from(LeituraSensor)):

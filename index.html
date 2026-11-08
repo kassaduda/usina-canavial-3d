@@ -197,6 +197,23 @@
     @keyframes fadein { from { opacity: 0; } }
   }
 
+  /* gestão de alarmes */
+  .alarms { position: absolute; top: 78px; left: 66px; width: min(430px, calc(100% - 32px)); max-height: calc(100% - 200px); overflow: auto; padding: 14px; border-radius: 14px; z-index: 6; display: flex; flex-direction: column; gap: 8px; }
+  .alarms[hidden] { display: none; }
+  .alarms h3 { margin: 4px 0 0; font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .alarms .top2 { display: flex; justify-content: space-between; align-items: center; }
+  .alarms .top2 button { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 4px 10px; font-size: 12px; }
+  .al { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, .04); border: 1px solid var(--line); font-size: 12.5px; }
+  .al small { grid-column: 2 / 4; color: var(--muted); font-size: 11.5px; }
+  .al .pr { font-size: 10.5px; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; letter-spacing: .04em; border: 1px solid; white-space: nowrap; }
+  .pr.critico { color: #f87171; border-color: rgba(248, 113, 113, .5); }
+  .pr.atencao { color: var(--orange); border-color: rgba(251, 146, 60, .5); }
+  .pr.info { color: #7dd3fc; border-color: rgba(125, 211, 252, .4); }
+  .al button { border: 1px solid rgba(34, 197, 94, .5); background: rgba(34, 197, 94, .12); border-radius: 999px; padding: 3px 10px; font-size: 12px; }
+  .al.ok { opacity: .72; }
+  .chip b { font-weight: 500; margin-left: 4px; color: var(--orange); }
+  #app.tour .alarms { visibility: hidden; }
+
   /* camadas e tour */
   .layers { grid-area: layers; align-self: end; justify-self: start; padding: 8px; border-radius: 14px; display: flex; flex-direction: column; gap: 8px; max-width: 100%; }
   .chips { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -233,6 +250,7 @@
   <canvas id="gl" aria-label="Vista isométrica 3D da usina. Arraste para mover, use a roda do mouse para aproximar."></canvas>
   <div id="vig"></div>
   <div class="caption card" id="cap" hidden><div class="capTxt" id="capTxt"></div><div class="capRow"><div class="dots" id="capDots"></div><button type="button" id="capStop">Parar tour</button></div></div>
+  <section class="alarms card" id="alarms" hidden aria-label="Gestão de alarmes"></section>
   <div id="tags"></div>
   <div id="nogl" hidden>Seu navegador não conseguiu abrir a vista 3D (WebGL indisponível). Tente outro navegador ou ative a aceleração de hardware.</div>
 
@@ -279,6 +297,7 @@
         <button class="chip" type="button" data-layer="temp" aria-pressed="false">Temperatura</button>
         <button class="chip" type="button" data-layer="prod" aria-pressed="false">Produção</button>
         <button class="chip" type="button" data-layer="alert" aria-pressed="false">Alertas</button>
+        <button class="chip" type="button" id="alarmBtn" aria-expanded="false">Alarmes<b id="alarmN"></b></button>
         <button class="chip tourbtn" type="button" id="tourBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>Tour</button>
       </div>
       <div class="legend" id="legend" hidden><i id="legBar"></i><span id="legA"></span><span id="legB"></span></div>
@@ -310,7 +329,7 @@
         { k: 'Moagem hoje', u: 't', v: 67399, d: 0, step: 4 },
         { k: 'Fila de recepção (simulado)', u: 'caminhões', v: 0, d: 0 },
         { k: 'ATR médio', u: 'kg/t', v: 138.2, d: 1, n: 0.28 },
-        { k: 'Extração', u: '%', v: 96.1, d: 1, n: 0.08 } ] },
+        { k: 'Eficiência de extração', u: '%', v: 96.1, d: 1, n: 0.08 } ] },
     { id: 'caldo', nome: 'Tratamento do caldo', curto: 'Caldo', pos: [-2.1, -8.5], top: 6.2, spark: 0,
       desc: 'O caldo é peneirado, aquecido e decantado para retirar impurezas antes de seguir para a fermentação.',
       ind: [
@@ -324,14 +343,17 @@
         { k: 'Temperatura da dorna 3', u: '°C', v: 34.1, d: 1, n: 0.12 },
         { k: 'Teor alcoólico', u: '°GL', v: 8.7, d: 1, n: 0.05 },
         { k: 'Dornas ativas', u: 'de 4', v: 4, d: 0 },
-        { k: 'Tempo de ciclo', u: 'h', v: 9.1, d: 1, n: 0.06 } ] },
+        { k: 'Tempo de ciclo', u: 'h', v: 9.1, d: 1, n: 0.06 },
+        { k: 'Eficiência de fermentação', u: '%', v: 90.5, d: 1, n: 0.1 } ] },
     { id: 'destilacao', nome: 'Destilação', curto: 'Destilação', pos: [11.3, 10.8], top: 11.2, spark: 1,
       desc: 'O vinho fermentado é aquecido em colunas, onde o álcool se separa da água e chega ao grau final.',
       ind: [
         { k: 'Etanol hoje', u: 'm³', v: 1640, d: 0, step: 0.4 },
         { k: 'Pureza', u: '°INPM', v: 93.2, d: 1, n: 0.06 },
         { k: 'Temp. da coluna', u: '°C', v: 78, d: 1, n: 0.4 },
-        { k: 'Pressão da coluna', u: 'bar', v: 1.2, d: 2, n: 0.02 } ] },
+        { k: 'Pressão da coluna', u: 'bar', v: 1.2, d: 2, n: 0.02 },
+        { k: 'Rendimento industrial', u: 'L/t', v: 34.2, d: 1, n: 0.1 },
+        { k: 'Perdas totais', u: '%', v: 13.4, d: 1, n: 0.1 } ] },
     { id: 'expedicao', nome: 'Expedição', curto: 'Expedição', pos: [-5.4, 10.3], top: 7.4, spark: 0,
       desc: 'Etanol e açúcar ficam armazenados e saem em caminhões-tanque e carretas rumo aos clientes.',
       ind: [
@@ -738,7 +760,8 @@
     const m = byId.moagem.ind, d = byId.destilacao.ind;
     $('#kpis').innerHTML = [
       ['Moagem hoje', fmt(m[0].v, 0), 't'], ['ATR médio', fmt(m[2].v, 1), 'kg/t'],
-      ['Etanol hoje', fmt(d[0].v, 0), 'm³'], ['Pátio (simulado)', String(trucks.length), ''] ]
+      ['Etanol hoje', fmt(d[0].v, 0), 'm³'], ['Rendimento industrial', fmt(d[4].v, 1), 'L/t'],
+      ['Efic. fermentação', fmt(byId.fermentacao.ind[4].v, 1), '%'], ['Pátio (simulado)', String(trucks.length), ''] ]
       .map(([k, v, u]) => `<div class="kpi card"><span>${k}</span><b>${v}<i>${u}</i></b></div>`).join('');
     const al = apiOk ? cenaAlertas : (statusOf(byId.fermentacao) === 'warn' ? [{ mensagem: `Dorna 3 a ${fmt(byId.fermentacao.ind[0].v, 1)} °C, acima de 33 °C` }] : []);
     $('#alert').classList.toggle('on', al.length > 0);
@@ -784,7 +807,10 @@
   $('#home').onclick = () => { goal.x = HOME.x; goal.z = HOME.z; goal.zoom = 1; goal.az = Math.round(goal.az / (Math.PI / 2) - 0.5) * (Math.PI / 2) + Math.PI / 4; };
   $('#prev').onclick = () => select(STAGES[(STAGES.indexOf(byId[sel]) + STAGES.length - 1) % STAGES.length].id, true);
   $('#next').onclick = () => select(STAGES[(STAGES.indexOf(byId[sel]) + 1) % STAGES.length].id, true);
-  $('#alert').onclick = () => select('fermentacao', true);
+  $('#alert').onclick = () => {
+    const a = cenaAlertas[0], s = a && STAGES.find((x) => x.nome === a.etapa);
+    select(s ? s.id : 'fermentacao', true); setAlarms(true);
+  };
   document.addEventListener('keydown', (e) => {
     if (e.key === '+' || e.key === '=') $('#zIn').click(); else if (e.key === '-') $('#zOut').click();
     else if (e.key === 'ArrowLeft' && e.shiftKey) $('#rotL').click(); else if (e.key === 'ArrowRight' && e.shiftKey) $('#rotR').click();
@@ -885,9 +911,34 @@
     renderer.render(scene, camera); placeTags();
     requestAnimationFrame(frame);
   }
+  /* ---------- Gestão de alarmes ---------- */
+  let alarmes = [], alarmsOpen = false;
+  const PRIO = { critico: 'Crítico', atencao: 'Atenção', info: 'Info' };
+  const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const dur = (sg) => sg < 60 ? `${sg} s` : `${Math.floor(sg / 60)} min ${sg % 60} s`;
+  function setAlarms(open) { alarmsOpen = open; $('#alarms').hidden = !open; $('#alarmBtn').setAttribute('aria-expanded', String(open)); renderAlarms(); }
+  function ackText(a) { return a.reconhecido ? `Reconhecido em ${dur(a.segundos_ate_reconhecer)}` : 'Não reconhecido'; }
+  function renderAlarms() {
+    const pend = apiOk ? cenaAlertas.filter((a) => !a.reconhecido).length : 0;
+    $('#alarmN').textContent = pend ? String(pend) : '';
+    if (!alarmsOpen) return;
+    const box = $('#alarms');
+    if (!apiOk) { box.innerHTML = '<div class="top2"><b>Alarmes</b><button type="button" data-close>Fechar</button></div><p class="desc">Sem conexão com a API: alarmes indisponíveis.</p>'; return; }
+    const btn = (id) => `<button type="button" data-ack="${id}">Reconhecer</button>`;
+    const ativos = cenaAlertas.map((a) => `<div class="al"><span class="pr ${a.prioridade}">${PRIO[a.prioridade]}</span><span>${esc(a.mensagem)}</span>${a.alarme_id && !a.reconhecido ? btn(a.alarme_id) : '<span></span>'}<small>${esc(a.area)} · ${a.reconhecido ? ackText(a) : 'aguardando reconhecimento'}</small></div>`).join('');
+    const hist = alarmes.map((a) => `<div class="al ok"><span class="pr ${a.prioridade}">${PRIO[a.prioridade]}</span><span>${esc(a.mensagem)}</span>${a.nivel === 'Atenção' && !a.reconhecido ? btn(a.id) : '<span></span>'}<small>${a.hora} · ${esc(a.area)}${a.nivel === 'Atenção' ? ' · ' + ackText(a) : ''}</small></div>`).join('');
+    box.innerHTML = `<div class="top2"><b>Alarmes</b><button type="button" data-close>Fechar</button></div><h3>Ativos agora</h3>${ativos || '<p class="desc">Nenhum alarme ativo.</p>'}<h3>Histórico</h3>${hist}`;
+  }
+  $('#alarms').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.hasAttribute('data-close')) return setAlarms(false);
+    if (b.dataset.ack) { b.disabled = true; fetch(`/api/alertas/${b.dataset.ack}/reconhecer`, { method: 'POST' }).then(poll).catch(() => { b.disabled = false; }); }
+  });
+  $('#alarmBtn').onclick = () => setAlarms(!alarmsOpen);
+
   /* ---------- API (consulta a cada 10 s, com fallback para o exemplo) ---------- */
   const getJson = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); });
-  function applyApi(et, kp, cn, hs) {
+  function applyApi(et, kp, cn, hs, ix, al) {
     const E = (nome) => et.find((e) => e.etapa === nome), K = (id) => kp.find((k) => k.indicador === id);
     const put = (s, n, v, k, u) => { const i = s.ind[n]; if (v != null) i.v = v; if (k) i.k = k; if (u != null) i.u = u; };
     const ev = (e, nome) => { for (let n = 1; n <= 4; n++) if (e['ind' + n] === nome) return { v: e['val' + n], u: e['un' + n] }; return {}; };
@@ -906,7 +957,10 @@
       const serie = (hs.series[s.id] || []).slice(-30).map((p) => p.v);
       if (serie.length >= 2) s.hist = serie;
     });
-    cena = cn.etapas; cenaAlertas = cn.alertas;
+    const I = Object.fromEntries(ix.map((i) => [i.id, i.valor]));
+    put(byId.moagem, 3, I.ef_extracao); put(byId.fermentacao, 4, I.ef_fermentacao);
+    put(byId.destilacao, 4, I.rendimento); put(byId.destilacao, 5, I.perdas);
+    cena = cn.etapas; cenaAlertas = cn.alertas; alarmes = al;
   }
   function setSource(ok) {
     apiOk = ok;
@@ -914,10 +968,11 @@
     $('#srcNote').textContent = ok ? 'Dados fictícios gerados pelo simulador da usina (API local). Pátio de caminhões simulado no navegador.' : 'Dados fictícios de demonstração, gerados no navegador.';
   }
   function poll() {
-    Promise.all([getJson('/api/etapas'), getJson('/api/kpis'), getJson('/api/cena'), getJson('/api/historico?minutos=5')])
-      .then(([et, kp, cn, hs]) => { applyApi(et, kp, cn, hs); setSource(true); })
+    Promise.all([getJson('/api/etapas'), getJson('/api/kpis'), getJson('/api/cena'), getJson('/api/historico?minutos=5'),
+      getJson('/api/indicadores'), getJson('/api/alarmes?limite=20')])
+      .then(([et, kp, cn, hs, ix, al]) => { applyApi(et, kp, cn, hs, ix, al); setSource(true); })
       .catch(() => { if (apiOk) STAGES.forEach((s) => { s.alerts = undefined; }); setSource(false); })
-      .then(() => renderLive());
+      .then(() => { renderLive(); renderAlarms(); });
   }
   poll(); setInterval(poll, 10000);
   requestAnimationFrame(frame);
