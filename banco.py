@@ -110,6 +110,10 @@ def sensores() -> list[dict]:
         ("Indicadores gerais", "Açúcar produzido", "t/dia", 2180, 0, 0.003),
         ("Indicadores gerais", "Faturamento", "R$ mi", 64.8, 1, 0.002),
         ("Utilidades", "Pressão de vapor", "bar", 42.0, 1, 0.006),
+        # Temperaturas que faltavam para a camada de temperatura do painel 3D.
+        ("Recepção e moagem", "Temperatura do caldo", "°C", 32.5, 1, 0.01),
+        ("Destilação", "Temperatura da coluna", "°C", 78.0, 1, 0.004),
+        ("Expedição", "Temperatura do tanque", "°C", 28.5, 1, 0.01),
     ]
     for etapa, nome, un, valor, casas, ruido in extras:
         lista.append(dict(etapa=etapa, sensor=nome, unidade=un, inicial=valor,
@@ -118,6 +122,37 @@ def sensores() -> list[dict]:
         lista.append(dict(etapa="Mix de produtos", sensor=m["produto"], unidade="%",
                           inicial=m["percentual"], alvo=m["percentual"], casas=1, ruido=0.01))
     return lista
+
+
+# ---------------------------------------------------------------- limites do painel 3D
+
+# id da etapa no painel -> nome da etapa no banco.
+ETAPAS_3D = {"moagem": "Recepção e moagem", "caldo": "Tratamento do caldo", "fermentacao": "Fermentação",
+             "destilacao": "Destilação", "expedicao": "Expedição"}
+
+# Limite de temperatura (°C) de cada etapa e sensor de onde sai a leitura.
+# Na fermentação vale a dorna mais quente.
+LIMITES_TEMP = {
+    "moagem": (40.0, "Temperatura do caldo"), "caldo": (90.0, "Temperatura"),
+    "fermentacao": (33.0, None), "destilacao": (85.0, "Temperatura da coluna"),
+    "expedicao": (40.0, "Temperatura do tanque"),
+}
+
+# Produção real (soma dos sensores) e capacidade nominal, na mesma unidade.
+CAPACIDADES = {
+    "moagem": (["Cana processada"], 55000),          # t/dia
+    "caldo": (["Vazão"], 700),                       # m³/h
+    "fermentacao": (["Volume em dornas"], 350000),   # L
+    "destilacao": (["Hidratado", "Anidro"], 1800),   # m³/dia
+    "expedicao": (["Etanol em tanque"], 22000),      # m³
+}
+
+# Sensor mostrado no gráfico de cada etapa.
+SENSOR_GRAFICO = {
+    "moagem": ("Indicadores gerais", "ATR"), "caldo": ("Tratamento do caldo", "Brix médio"),
+    "fermentacao": ("Fermentação", "Temperatura da dorna 3"),
+    "destilacao": ("Destilação", "Pureza do hidratado"), "expedicao": ("Expedição", "Etanol em tanque"),
+}
 
 
 # ---------------------------------------------------------------- regras

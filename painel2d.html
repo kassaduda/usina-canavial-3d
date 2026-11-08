@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Usina Canavial</title>
+<style>
+/* Valores padrão das variáveis que antes vinham do ambiente do Claude */
+:root{--font-anthropic-sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-anthropic-serif:Georgia,"Times New Roman",serif;
+  --cds-radius:12px;--cds-dur-slow:.4s;--cds-ease-out:cubic-bezier(.16,1,.3,1);
+  --color-bad:#EF4444}
+html,body{margin:0;background:#0B0F12}
+.dash-skeleton{position:relative;overflow:hidden;background:#12171B;border-radius:8px}
+.dash-skeleton::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);transform:translateX(-100%);animation:dash-shimmer 1.4s infinite}
+@keyframes dash-shimmer{to{transform:translateX(100%)}}
+@media (prefers-reduced-motion:reduce){.dash-skeleton::after{animation:none}}
+</style>
+</head>
+<body>
+<style>
+#dash-root{--dash-gutter:0}
+.uc{--bg:#0B0F12;--panel:#12171B;--panel-2:#171E23;--line:#232B31;--fg:#E8EEF3;--mut:#8DA0AF;--amber:#F59E0B;--teal:#22C55E;--sky:#2DD4BF;--coral:#FB923C;--lime:#FACC15;
+  container-type:inline-size;font-family:var(--font-anthropic-sans);color:var(--fg);border-radius:var(--cds-radius);overflow:clip;
+  background:var(--bg)}
+.uc *{box-sizing:border-box}
+.uc [hidden]{display:none!important}
+.uc button{font:inherit;color:inherit;cursor:pointer}
+.uc-shell{display:grid;grid-template-columns:176px minmax(0,1fr);min-height:100%}
+.uc-side{padding:14px 10px;border-right:1px solid var(--line);background:rgba(8,13,17,.6);display:flex;flex-direction:column;gap:16px}
+.uc-brand{display:flex;align-items:center;gap:10px;padding:0 4px}
+.uc-brand svg{width:30px;height:30px;flex:none}
+.uc-brand b{font-weight:600;font-size:1rem;display:block}
+.uc-brand small{display:block;color:var(--mut);font-size:.72rem}
+.uc-nav2{display:grid;gap:4px}
+.uc-nav2 button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:0;border-radius:10px;background:transparent;color:var(--mut);text-align:left;font-size:.82rem;transition:background .2s,color .2s,transform .15s}
+.uc-nav2 button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.uc-nav2 button:hover{color:var(--fg);background:var(--panel-2)}
+.uc-nav2 button[aria-current="page"]{background:rgba(34,197,94,.1);color:var(--teal);font-weight:600}
+.uc-nav2 button[aria-current="page"] svg{color:var(--teal)}
+.uc-side-foot{margin-top:auto;color:var(--mut);font-size:.78rem;padding:0 6px}
+.uc-main{padding:clamp(10px,1.6vw,16px);display:grid;gap:12px;align-content:start;min-width:0}
+.uc-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 22px}
+.uc-bar .l,.uc-bar .m,.uc-bar .r{display:flex;align-items:center;gap:10px;font-size:.8rem;color:var(--mut)}
+.uc-bar .l b{color:var(--fg);font-weight:600;font-size:.9rem}
+.uc-wx{display:flex;align-items:center;gap:8px}
+.uc-wx svg{width:26px;height:26px;color:var(--amber);fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+.uc-wx b{color:var(--fg);font-size:.95rem;font-weight:600}
+.uc-wx small{display:block;font-size:.72rem;color:var(--mut)}
+.uc-user{display:flex;align-items:center;gap:9px;padding:4px 12px 4px 4px;border:1px solid var(--line);border-radius:999px;background:rgba(17,25,32,.7)}
+.uc-av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#4ade80,#15803d);color:#04170b;font-weight:700;font-size:.78rem}
+.uc-user b{display:block;color:var(--fg);font-size:.82rem;font-weight:600}
+.uc-user small{display:block;font-size:.7rem}
+.uc-dot{width:.5rem;height:.5rem;border-radius:50%;background:var(--teal);box-shadow:0 0 0 4px rgba(34,197,94,.16);flex:none}
+.uc-hero{border-radius:12px;overflow:hidden;padding:clamp(14px,2.4vw,22px);min-height:128px;border:1px solid var(--line);background-size:cover;background-position:center 35%;position:relative;display:grid;align-content:end;gap:8px}
+.uc-hero::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(11,15,18,.94) 6%,rgba(11,15,18,.6) 55%,rgba(11,15,18,.2)),linear-gradient(0deg,rgba(11,15,18,.65),transparent 60%)}
+.uc-hero>*{position:relative}
+.uc-hero h1{margin:0;font-family:var(--font-anthropic-sans);font-weight:600;font-size:clamp(1.3rem,3vw,1.75rem);line-height:1.1}
+.uc-hero p{margin:0;max-width:60ch;color:#c4d0da;font-size:.82rem;line-height:1.4}
+.uc-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.uc-chip{border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:2px 10px;font-size:.7rem;color:#d6e0e8;background:rgba(11,15,18,.45)}
+.uc-card{background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,0) 40%),var(--panel);border:1px solid var(--line);border-radius:12px;padding:clamp(10px,1.3vw,14px);position:relative;min-width:0;transition:border-color .2s,box-shadow .2s}
+.uc-card:hover{border-color:rgba(34,197,94,.35)}
+.uc-h{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px;margin-bottom:8px}
+.uc-h h2{margin:0;font-size:.88rem;font-weight:500}
+.uc-h p{margin:1px 0 0;color:var(--mut);font-size:.7rem}
+.uc-sec{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px;margin:6px 2px -4px}
+.uc-sec h2{margin:0;font-family:var(--font-anthropic-sans);font-weight:500;font-size:1rem}
+.uc-sec span{color:var(--mut);font-size:.82rem}
+.uc-flowwrap{container-type:inline-size}
+.uc-flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:22px}
+.uc-stage{position:relative;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:0;display:grid;align-content:start;text-align:left;color:inherit;transition:border-color .2s,transform .2s}
+.uc-stage:hover{border-color:var(--teal);transform:translateY(-2px)}
+.uc-stage[aria-pressed="true"]{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal) inset}
+.uc-stage[data-state="Atenção"]{border-color:rgba(251,146,60,.55)}
+.uc-photo{height:5.4rem;background-size:cover;background-position:center;background-color:#171E23;border-radius:11px 11px 0 0;position:relative;overflow:hidden}
+.uc-photo::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,#0B0F12 0%,rgba(11,15,18,.82) 38%,rgba(11,15,18,.25) 72%,transparent 100%)}
+.uc-photo>*{position:absolute;z-index:1}
+.uc-photo .uc-ico{left:8px;bottom:6px;width:1.5rem;height:1.5rem;color:var(--teal)}
+.uc-ico svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.uc-pill{font-size:.62rem;padding:2px 8px;border-radius:999px;background:rgba(11,15,18,.7);color:var(--teal);white-space:nowrap;border:1px solid rgba(34,197,94,.4)}
+.uc-photo .uc-pill{right:10px;top:10px}
+.uc-stage[data-state="Atenção"] .uc-pill{color:var(--coral);border-color:rgba(251,146,60,.5)}
+.uc-sb{padding:8px 10px 10px;display:grid;gap:5px}
+.uc-sname{font-weight:600;font-size:.82rem}
+.uc-m{display:grid;gap:1px}
+.uc-m .l{color:var(--mut);font-size:.65rem}
+.uc-m .v{font-variant-numeric:tabular-nums;font-size:.88rem;font-weight:600}
+.uc-m .v i{font-style:normal;color:var(--mut);font-size:.72rem;margin-left:4px}
+.uc-more{color:var(--teal);font-size:.68rem}
+@container (min-width:900px){
+  .uc-stage:not(:last-child)::before{content:"";position:absolute;top:2.7rem;right:-20px;width:16px;height:2px;background:var(--teal)}
+  .uc-stage:not(:last-child)::after{content:"";position:absolute;top:calc(2.7rem - 4px);right:-20px;width:9px;height:9px;border-top:2px solid var(--teal);border-right:2px solid var(--teal);transform:rotate(45deg)}
+}
+.uc-detail{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr));gap:18px;padding:0;overflow:hidden;margin-top:12px;border-color:rgba(34,197,94,.45)}
+.uc-d-img{min-height:230px;background-size:cover;background-position:center;position:relative}
+.uc-d-img::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 40%,var(--panel)),linear-gradient(135deg,rgba(245,158,11,.2),rgba(34,197,94,.08))}
+.uc-d-b{padding:clamp(14px,2vw,22px);display:grid;gap:12px;align-content:start}
+.uc-d-h{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.uc-d-h h3{margin:0;font-weight:600;font-size:1.2rem}
+.uc-d-h .uc-pill{border-color:rgba(34,197,94,.4)}
+.uc-d-x{margin-left:auto;border:1px solid var(--line);background:var(--panel-2);border-radius:999px;padding:4px 12px;font-size:.78rem;color:var(--mut)}
+.uc-d-b p{margin:0;color:#b9c7d2;font-size:.9rem;line-height:1.5}
+.uc-d-m{display:grid;grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr));gap:10px}
+.uc-d-m>div{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.uc-d-m .l{color:var(--mut);font-size:.72rem}
+.uc-d-m .v{font-family:var(--font-anthropic-sans);font-size:1.4rem;font-variant-numeric:tabular-nums;margin-top:3px}
+.uc-d-m .v i{font-family:var(--font-anthropic-sans);font-style:normal;font-size:.72rem;color:var(--mut);margin-left:5px}
+.uc-d-f{display:flex;flex-wrap:wrap;gap:6px 18px;color:var(--mut);font-size:.78rem}
+.uc-grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))}
+.uc-grid.wide{grid-template-columns:repeat(auto-fit,minmax(min(100%,26rem),1fr))}
+.uc-lbl{color:var(--mut);font-size:.72rem;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.uc-big{font-family:var(--font-anthropic-sans);font-weight:400;font-size:clamp(1.3rem,2.3vw,1.65rem);line-height:1.05;margin-top:6px;font-variant-numeric:tabular-nums}
+.uc-big small{font-family:var(--font-anthropic-sans);font-size:.8rem;color:var(--mut);margin-left:6px}
+.uc-sub{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;margin-top:5px;font-size:.7rem;color:var(--mut)}
+.uc-delta{font-weight:600;font-variant-numeric:tabular-nums}
+.uc-delta.up{color:var(--teal)}.uc-delta.down{color:var(--coral)}
+.uc-meter{height:5px;border-radius:99px;background:var(--panel-2);margin-top:9px;overflow:hidden}
+.uc-meter i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--teal),var(--lime));transition:width var(--cds-dur-slow) var(--cds-ease-out)}
+.uc-ringbox{position:relative;max-width:128px;margin:4px auto 0}
+.uc-ringbox .c{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.uc-ringbox .c .uc-big{margin:0;font-size:1.15rem}
+.uc-ringbox .c small{display:block;color:var(--mut);font-size:.75rem;margin-top:2px}
+.uc-ringfoot{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:.7rem;color:var(--mut)}
+.uc-chart{position:relative;min-height:250px}
+.uc-chart svg{display:block;overflow:visible}
+.uc-chart text{font-family:var(--font-anthropic-sans);font-size:11px;fill:var(--mut)}
+.uc-tip{position:absolute;pointer-events:none;background:#0D1215;border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:.78rem;box-shadow:0 8px 24px rgba(0,0,0,.45);white-space:nowrap;z-index:3;top:0;left:0}
+.uc-tip .d{color:var(--mut);margin-bottom:3px}
+.uc-tip .r{display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
+.uc-tip .r i{width:8px;height:8px;border-radius:50%}
+.uc-filter{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.uc-seg{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--panel)}
+.uc-seg button{border:0;background:transparent;padding:3px 10px;border-radius:999px;font-size:.72rem;color:var(--mut)}
+.uc-seg button[aria-pressed="true"]{background:var(--teal);color:#04170b;font-weight:600}
+.uc-dates{display:flex;align-items:center;gap:8px;font-size:.78rem;color:var(--mut)}
+.uc-dates input{color-scheme:dark;background:var(--panel);border:1px solid var(--line);color:var(--fg);border-radius:10px;padding:5px 8px;font:inherit;font-size:.8rem}
+.uc-key{display:flex;gap:14px;font-size:.76rem;color:var(--mut)}
+.uc-key i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.uc-legend{display:grid;gap:8px;margin-top:12px}
+.uc-legend div{display:flex;align-items:center;gap:8px;font-size:.85rem}
+.uc-legend i{width:10px;height:10px;border-radius:3px;flex:none}
+.uc-prog{display:grid;gap:10px}
+.uc-prog .t{display:flex;justify-content:space-between;gap:8px;font-size:.78rem}
+.uc-prog .track{height:7px;border-radius:99px;background:var(--panel-2);margin:5px 0 3px;overflow:hidden}
+.uc-prog .track i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--teal),var(--lime));transition:width var(--cds-dur-slow) var(--cds-ease-out)}
+.uc-prog .n{font-size:.68rem;color:var(--mut);font-variant-numeric:tabular-nums}
+.uc-tw{overflow:auto;max-height:340px}
+.uc-tw table{width:100%;border-collapse:collapse;font-size:.74rem;font-variant-numeric:tabular-nums}
+.uc-tw th{position:sticky;top:0;background:var(--panel);text-align:left;font-weight:500;color:var(--mut);font-size:.68rem;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.uc-tw th.s{cursor:pointer}
+.uc-tw th.s:hover{color:var(--fg)}
+.uc-tw td{padding:6px 8px;border-bottom:1px solid rgba(35,43,49,.6);vertical-align:top}
+.uc-tw tbody tr:hover td{background:rgba(34,197,94,.06)}
+.uc-tw td:first-child{color:var(--mut);white-space:nowrap}
+.uc-lv{display:inline-block;font-size:.65rem;padding:1px 8px;border-radius:99px;background:rgba(250,204,21,.14);color:var(--lime)}
+tr.n-atencao .uc-lv{background:rgba(251,146,60,.16);color:var(--coral)}
+tr.n-ok .uc-lv{background:rgba(34,197,94,.14);color:var(--teal)}
+.uc-fail{display:flex;align-items:center;justify-content:center;gap:8px;min-height:inherit;color:var(--mut);font-size:.8rem;text-align:center}
+.uc-fail i{width:.375rem;height:.375rem;border-radius:50%;background:var(--color-bad)}
+.uc-foot{color:var(--mut);font-size:.76rem;text-align:center;padding:6px 0 2px}
+[data-dash-source-state=refreshing]{opacity:.5;transition:opacity var(--cds-dur-slow)}
+@container (max-width:820px){
+  .uc-shell{grid-template-columns:1fr}
+  .uc-side{flex-direction:row;align-items:center;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line);padding:12px 16px;gap:10px 18px}
+  .uc-nav2{display:flex;flex-wrap:wrap;gap:4px}
+  .uc-nav2 button{width:auto;padding:8px 12px}
+  .uc-side-foot{display:none}
+}
+@media (prefers-reduced-motion:no-preference){
+  .uc-card,.uc-stage{animation:uc-rise var(--cds-dur-slow) var(--cds-ease-out) both}
+  .uc-stage:nth-child(2){animation-delay:60ms}.uc-stage:nth-child(3){animation-delay:120ms}.uc-stage:nth-child(4){animation-delay:180ms}.uc-stage:nth-child(5){animation-delay:240ms}
+  @keyframes uc-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  @container (min-width:900px){.uc-stage:not(:last-child)::after{animation:uc-nudge 1.4s ease-in-out infinite}}
+  @keyframes uc-nudge{50%{transform:translateX(3px) rotate(45deg)}}
+  .uc-dot{animation:uc-pulse 2s ease-in-out infinite,uc-blink 1.6s ease-in-out infinite}
+  @keyframes uc-blink{50%{opacity:.35}}
+  @keyframes uc-pulse{50%{box-shadow:0 0 0 7px rgba(34,197,94,0)}}
+}
+
+.uc-kic{width:24px;height:24px;border-radius:8px;background:rgba(34,197,94,.14);color:var(--teal);display:grid;place-items:center;flex:none}
+.uc-kic svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.uc-grid#uc-kpis{grid-template-columns:repeat(auto-fit,minmax(min(100%,10.5rem),1fr));gap:10px}
+.uc-side-foot{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid rgba(34,197,94,.3);border-radius:10px;background:rgba(34,197,94,.08);color:#BFE9CC;font-size:.68rem;line-height:1.3}
+.uc-side-foot svg{width:18px;height:18px;flex:none;fill:none;stroke:var(--teal);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.uc-brand small{color:var(--teal);font-size:.66rem}
+.uc-brand b{font-size:.92rem}
+.uc-herotag{position:absolute;right:18px;top:12px;bottom:12px;display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end;text-align:right;max-width:42%}
+.uc-herotag svg{width:min(220px,100%);height:auto}
+.uc-herotag p{margin:4px 0 0;font-size:.8rem;color:#d9e6dd;font-weight:500}
+.uc-bottom{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr))}
+@container (min-width:1000px){.uc-bottom{grid-template-columns:1.35fr 1fr 1.35fr}}
+@container (max-width:700px){.uc-herotag{display:none}}
+.uc button:active{transform:scale(.97)}
+.uc-bar .l b{font-size:.82rem}
+.uc-bar{padding-bottom:2px}
+</style>
+
+<div class="uc">
+<div class="uc-shell">
+
+  <aside class="uc-side">
+    <div class="uc-brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c5 6.5 9 11 9 16.5a9 9 0 0 1-18 0C7 14 11 9.5 16 3z" fill="#22C55E"/><path d="M16 28c0-6 3-9.500 6.500-11.500M16 28c0-4-2-6.500-4.500-8" stroke="#0B0F12" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+      <div><b data-source="usina" data-row="0" data-field="nome" data-fmt="txt">—</b><small data-source="usina" data-row="0" data-field="slogan" data-fmt="txt">—</small></div>
+    </div>
+    <nav class="uc-nav2" aria-label="Seções">
+      <button data-tab="visao" aria-current="page"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>Visão geral</button>
+      <button data-tab="producao"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>Produção</button>
+      <button data-tab="safra"><svg viewBox="0 0 24 24"><path d="M12 21c-5 0-8-3.500-8-8 0-4 3-7 8-10 5 3 8 6 8 10 0 4.500-3 8-8 8z"/><path d="M12 21V9"/></svg>Safra e alertas</button>
+    </nav>
+    <div class="uc-side-foot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21c-5 0-8-3.500-8-8 0-4 3-7 8-10 5 3 8 6 8 10 0 4.500-3 8-8 8z"/><path d="M12 21V9"/></svg><span data-source="usina" data-row="0" data-field="selo" data-fmt="txt">—</span></div>
+  </aside>
+
+  <main class="uc-main">
+    <header class="uc-bar">
+      <div class="l"><b data-source="usina" data-row="0" data-field="safra" data-fmt="txt">—</b><span>· dia <span data-source="usina" data-row="0" data-field="dia_safra" data-fmt="int">—</span> de moagem</span></div>
+      <div class="m uc-wx">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.900 4.900l1.400 1.400M17.700 17.700l1.400 1.400M4.900 19.100l1.400-1.400M17.700 6.300l1.400-1.400"/></svg>
+        <div><b><span data-source="usina" data-row="0" data-field="temperatura_c" data-fmt="int">—</span> °C</b><small><span data-source="usina" data-row="0" data-field="cidade" data-fmt="txt">—</span> · <span data-source="usina" data-row="0" data-field="clima" data-fmt="txt">—</span></small></div>
+      </div>
+      <div class="r">
+        <span class="uc-dot"></span><span>Sistema Online · Atualizado em <span data-source="usina" data-row="0" data-field="atualizado_em" data-fmt="txt">—</span></span>
+        <div class="uc-user"><span class="uc-av" id="uc-av">··</span><div><b data-source="usina" data-row="0" data-field="usuario_nome" data-fmt="txt">—</b><small data-source="usina" data-row="0" data-field="usuario_cargo" data-fmt="txt">—</small></div></div>
+      </div>
+    </header>
+
+    <!-- ========== VISÃO GERAL ========== -->
+    <div id="uc-v-visao" style="display:grid;gap:12px">
+      <section class="uc-hero" id="uc-hero">
+        <h1 data-source="usina" data-row="0" data-field="saudacao" data-fmt="txt">—</h1>
+        <p data-source="usina" data-row="0" data-field="subtitulo" data-fmt="txt">—</p>
+        <div class="uc-herotag" aria-hidden="false"><svg viewBox="0 0 240 70" aria-hidden="true"><g fill="none" stroke="#22C55E" stroke-width="1.6" stroke-linejoin="round" opacity=".55"><path d="M6 66h228M14 66V34h42v32M56 66V24h30v42M86 66V40h36v26M122 66V30h18v36M140 66V44h44v26M184 66V36h40v30"/><path d="M30 34V14h10v20M66 24V6h10v18M150 44v-8"/><path d="M200 36l8-10 8 10"/></g><g stroke="#22C55E" stroke-width="1.4" opacity=".4" stroke-linecap="round"><path d="M40 12c4-5 8-4 10-9M76 4c3-4 7-3 8-8"/></g></svg><p><span data-source="usina" data-row="0" data-field="frase" data-fmt="txt">—</span></p></div>
+        <div class="uc-chips">
+          <span class="uc-chip">Dados até <span data-source="usina" data-row="0" data-field="dados_ate" data-fmt="txt">—</span></span>
+          <span class="uc-chip">Toque em uma etapa para ver os detalhes</span>
+        </div>
+      </section>
+
+      <section class="uc-card" id="uc-processo">
+        <div class="uc-h"><div><h2>Fluxo do processo</h2><p>Da cana ao tanque, etapa por etapa, em tempo real.</p></div></div>
+        <div class="uc-flowwrap"><div class="uc-flow" id="uc-flow"></div></div>
+        <div class="uc-card uc-detail" id="uc-detail" hidden></div>
+      </section>
+
+      <section class="uc-grid" id="uc-kpis"></section>
+      <section class="uc-bottom">
+        <article class="uc-card"><div class="uc-h"><div><h2>Produção por dia</h2></div><div class="uc-key" style="gap:10px;white-space:nowrap"><span><i style="background:var(--teal)"></i>Etanol (m³)</span><span><i style="background:var(--lime)"></i>Açúcar (t)</span><span id="uc-key-prev" hidden><i style="width:12px;height:0;border-radius:0;border-top:2px dashed var(--teal);vertical-align:middle;margin-right:4px"></i>Previsão (5 dias)</span></div></div>
+          <div class="uc-chart dash-skeleton" id="uc-ch-home" data-source="producao" data-h="190" style="min-height:190px"></div></article>
+        <article class="uc-card"><div class="uc-h"><div><h2>Indicadores da Safra</h2></div></div><div class="uc-prog" id="uc-prog-h"></div></article>
+        <article class="uc-card"><div class="uc-h"><div><h2>Alertas e eventos</h2></div></div>
+          <div class="uc-tw" style="max-height:230px"><table data-source="alertas" data-row-key="id"><thead><tr><th data-field="hora">Hora</th><th data-field="nivel">Nível</th><th data-field="area">Área</th><th data-field="mensagem">Evento</th></tr></thead><tbody id="uc-alerts-h"></tbody></table></div></article>
+      </section>
+    </div>
+
+    <!-- ========== PRODUÇÃO ========== -->
+    <div id="uc-v-producao" style="display:grid;gap:12px" hidden>
+      <div class="uc-sec"><h2>Produção diária</h2><span>Escolha o período para atualizar gráficos e tabela</span></div>
+      <div class="uc-filter">
+        <div class="uc-seg" role="group" aria-label="Período">
+          <button data-n="7" aria-pressed="false">7 dias</button><button data-n="15" aria-pressed="true">15 dias</button><button data-n="30" aria-pressed="false">30 dias</button>
+        </div>
+        <div class="uc-dates"><label for="uc-from">De</label><input type="date" id="uc-from" min="2000-01-01" max="2099-12-31"><label for="uc-to">até</label><input type="date" id="uc-to" min="2000-01-01" max="2099-12-31"></div>
+      </div>
+      <section class="uc-grid wide">
+        <article class="uc-card">
+          <div class="uc-h"><div><h2>Moagem por dia</h2><p>Barras em coral: dia com moagem muito abaixo da capacidade.</p></div>
+            <div class="uc-key"><span><i style="background:var(--sky)"></i>Cana moída (t)</span></div></div>
+          <div class="uc-chart dash-skeleton" id="uc-ch-moagem" data-source="producao kpis"></div>
+        </article>
+        <article class="uc-card">
+          <div class="uc-h"><div><h2>Etanol e açúcar</h2><p>Duas escalas: etanol à esquerda, açúcar à direita.</p></div>
+            <div class="uc-key"><span><i style="background:var(--teal)"></i>Etanol (m³)</span><span><i style="background:var(--lime)"></i>Açúcar (t)</span></div></div>
+          <div class="uc-chart dash-skeleton" id="uc-ch-prod" data-source="producao"></div>
+        </article>
+        <article class="uc-card">
+          <div class="uc-h"><div><h2>ATR por dia</h2><p>Linha tracejada: meta de ATR.</p></div>
+            <div class="uc-key"><span><i style="background:var(--lime)"></i>ATR (kg/t)</span></div></div>
+          <div class="uc-chart dash-skeleton" id="uc-ch-atr" data-source="producao kpis"></div>
+        </article>
+      </section>
+      <section class="uc-card">
+        <div class="uc-h"><div><h2>Dados diários</h2><p>Clique em uma coluna para ordenar.</p></div></div>
+        <div class="uc-tw"><table id="uc-tbl" data-source="producao" data-row-key="dia">
+          <thead><tr><th class="s" data-k="dia" data-field="dia">Dia</th><th class="s" data-k="moagem_t" data-field="moagem_t">Moagem (t)</th><th class="s" data-k="etanol_m3" data-field="etanol_m3">Etanol (m³)</th><th class="s" data-k="acucar_t" data-field="acucar_t">Açúcar (t)</th><th class="s" data-k="atr_kg_t" data-field="atr_kg_t">ATR (kg/t)</th></tr></thead>
+          <tbody id="uc-tb"></tbody></table></div>
+      </section>
+    </div>
+
+    <!-- ========== SAFRA ========== -->
+    <div id="uc-v-safra" style="display:grid;gap:12px" hidden>
+      <div class="uc-sec"><h2>Safra e operação</h2><span>Acumulado, mix de produtos e ocorrências</span></div>
+      <section class="uc-grid wide">
+        <article class="uc-card">
+          <div class="uc-h"><div><h2>Mix de ATR</h2><p>Destino do açúcar recuperável da cana.</p></div></div>
+          <div class="uc-chart dash-skeleton" id="uc-donut" data-source="mix" style="min-height:220px"></div>
+          <div class="uc-legend" id="uc-legend"></div>
+        </article>
+        <article class="uc-card">
+          <div class="uc-h"><div><h2>Progresso da safra</h2><p>Acumulado frente à meta da safra.</p></div></div>
+          <div class="uc-prog" id="uc-prog"></div>
+        </article>
+      </section>
+      <section class="uc-card" id="uc-alertas">
+        <div class="uc-h"><div><h2>Alertas e eventos</h2><p>Últimas ocorrências da operação.</p></div>
+          <div class="uc-seg" id="uc-lvf" role="group" aria-label="Nível">
+            <button data-lv="" aria-pressed="true">Todos</button><button data-lv="Atenção" aria-pressed="false">Atenção</button><button data-lv="Info" aria-pressed="false">Info</button><button data-lv="OK" aria-pressed="false">OK</button>
+          </div></div>
+        <div class="uc-tw"><table data-source="alertas" data-row-key="id">
+          <thead><tr><th data-field="hora">Hora</th><th data-field="nivel">Nível</th><th data-field="area">Área</th><th data-field="mensagem">Evento</th></tr></thead>
+          <tbody id="uc-alerts"></tbody></table></div>
+      </section>
+    </div>
+
+    <footer class="uc-foot">Dados fictícios criados para demonstração de portfólio. "Usina Canavial" é uma marca fictícia. Fotos: Pexels.</footer>
+  </main>
+</div>
+</div>
+
+<script src="img-moagem.js"></script>
+<script src="img-caldo.js"></script>
+<script src="img-fermentacao.js"></script>
+<script src="img-destilacao.js"></script>
+<script src="img-expedicao.js"></script>
+<script src="img-hero.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="dash-shim.js"></script>
+<script>
+(function () {
+  const $ = (s, r = document) => r.querySelector(s);
+  const IMG = window.UC_IMG || {};
+  const L = d3.formatLocale({ decimal: ',', thousands: '.', grouping: [3], currency: ['R$ ', ''] });
+  const f0 = L.format(',.0f'), f1 = L.format(',.1f');
+  const FM = {
+    int: f0, d1: f1,
+    auto: (v) => (Number.isInteger(v) ? f0(v) : f1(v)),
+    pct: (v) => f1(v) + '%',
+    sgn: (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + f1(Math.abs(v)) + '%',
+    txt: (v) => String(v)
+  };
+  const parseD = d3.utcParse('%Y-%m-%d'), fmtD = d3.utcFormat('%-d/%m'), fmtFull = d3.utcFormat('%d/%m/%Y');
+  const IDS = ['usina', 'etapas', 'kpis', 'producao', 'mix', 'alertas', 'safra'];
+  const STG = ['moagem', 'caldo', 'fermentacao', 'destilacao', 'expedicao'];
+  const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+  const mk = (ds, where, field, fmt, cls) => {
+    const s = el('span', cls, '—');
+    s.dataset.source = ds; if (where) s.dataset.where = where; s.dataset.field = field; s.dataset.fmt = fmt;
+    return s;
+  };
+  const rowOf = (ds, where) => {
+    if (!where) return ds.data[0];
+    const p = [...new URLSearchParams(where)];
+    return ds.data.find((r) => p.every(([k, v]) => String(r[k]) === v));
+  };
+  const bg = (node, key, extra) => { if (IMG[key]) node.style.backgroundImage = (extra ? extra + ',' : '') + 'url("' + IMG[key] + '")'; };
+  const ICON = {
+    1: '<circle cx="17" cy="24" r="9"/><circle cx="31" cy="24" r="9"/><path d="M6 41h36M10 8l4 8M38 8l-4 8"/>',
+    2: '<path d="M24 6c6 8 11 14 11 21a11 11 0 0 1-22 0C13 20 18 14 24 6z"/><path d="M19 28a5 5 0 0 0 5 5"/>',
+    3: '<path d="M12 12h24v26a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4z"/><path d="M12 12c0-4 24-4 24 0"/><circle cx="20" cy="28" r="2.500"/><circle cx="29" cy="33" r="2"/><circle cx="27" cy="23" r="1.500"/>',
+    4: '<rect x="16" y="6" width="14" height="36" rx="5"/><path d="M16 16h14M16 24h14M16 32h14M30 12h9v14"/>',
+    5: '<path d="M5 14h24v18H5zM29 21h8l5 6v5H29z"/><circle cx="14" cy="35" r="3.500"/><circle cx="35" cy="35" r="3.500"/>'
+  };
+
+  // ---------- skeleton (marks written once) ----------
+  bg($('#uc-hero'), 'hero');
+  const flow = $('#uc-flow');
+  for (let i = 1; i <= 5; i++) {
+    const w = 'ordem=' + i, c = el('button', 'uc-stage'); c.type = 'button'; c.dataset.ordem = i; c.setAttribute('aria-pressed', 'false');
+    const ph = el('div', 'uc-photo'); bg(ph, STG[i - 1]);
+    const ico = el('div', 'uc-ico'); ico.innerHTML = '<svg viewBox="0 0 48 48" aria-hidden="true">' + ICON[i] + '</svg>';
+    ph.append(ico, mk('etapas', w, 'status', 'txt', 'uc-pill'));
+    const b = el('div', 'uc-sb'); b.append(mk('etapas', w, 'etapa', 'txt', 'uc-sname'));
+    [1, 2].forEach((k) => {
+      const m = el('div', 'uc-m'), v = el('div', 'v');
+      v.append(mk('etapas', w, 'val' + k, 'auto'), mk('etapas', w, 'un' + k, 'txt', ''));
+      v.lastChild.style.cssText = 'color:var(--mut);font-size:.72rem;margin-left:4px';
+      m.append(mk('etapas', w, 'ind' + k, 'txt', 'l'), v); b.append(m);
+    });
+    b.append(el('span', 'uc-more', 'Ver detalhes →'));
+    c.append(ph, b); flow.append(c);
+  }
+
+  // detail panel (marks default to etapa 1; re-pointed on open)
+  const det = $('#uc-detail'), W1 = 'ordem=1';
+  (function () {
+    const img = el('div', 'uc-d-img'); img.id = 'uc-d-img';
+    const b = el('div', 'uc-d-b');
+    const h = el('div', 'uc-d-h'), h3 = el('h3'); h3.append(mk('etapas', W1, 'etapa', 'txt'));
+    const x = el('button', 'uc-d-x', 'Fechar'); x.type = 'button'; x.id = 'uc-d-x';
+    h.append(h3, mk('etapas', W1, 'status', 'txt', 'uc-pill'), x);
+    const p = el('p'); p.append(mk('etapas', W1, 'descricao', 'txt'));
+    const m = el('div', 'uc-d-m');
+    [1, 2, 3, 4].forEach((k) => {
+      const t = el('div'), l = el('div', 'l'), v = el('div', 'v'); l.append(mk('etapas', W1, 'ind' + k, 'txt'));
+      const u = el('i'); u.append(mk('etapas', W1, 'un' + k, 'txt')); v.append(mk('etapas', W1, 'val' + k, 'auto'), u); t.append(l, v); m.append(t);
+    });
+    const f = el('div', 'uc-d-f'); const e1 = el('span'), e2 = el('span');
+    e1.append(mk('etapas', W1, 'equipe', 'txt')); e2.append(mk('etapas', W1, 'manutencao', 'txt')); f.append(e1, e2);
+    b.append(h, p, m, f); det.append(img, b);
+  })();
+  let openOrd = 0;
+  function openDetail(i) {
+    if (dash.data('etapas').status !== 'ok') return;
+    openOrd = i;
+    det.querySelectorAll('[data-source]').forEach((m) => { m.dataset.where = 'ordem=' + i; });
+    bg($('#uc-d-img'), STG[i - 1]);
+    det.hidden = false; fillMarks();
+    flow.querySelectorAll('.uc-stage').forEach((s) => s.setAttribute('aria-pressed', String(+s.dataset.ordem === i)));
+    det.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  function closeDetail() {
+    openOrd = 0; det.hidden = true;
+    flow.querySelectorAll('.uc-stage').forEach((s) => s.setAttribute('aria-pressed', 'false'));
+  }
+  flow.addEventListener('click', (ev) => { const s = ev.target.closest('.uc-stage'); if (s) (+s.dataset.ordem === openOrd ? closeDetail() : openDetail(+s.dataset.ordem)); });
+  $('#uc-d-x').addEventListener('click', closeDetail);
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && openOrd) closeDetail(); });
+
+  const kp = $('#uc-kpis');
+  const RINGS = [
+    { id: 'atr', label: 'ATR médio', max: 1.15, color: 'var(--teal)', fmt: 'd1' },
+    { id: 'moagem', label: 'Moagem frente à capacidade', max: 1, color: 'var(--sky)', fmt: 'int' }
+  ];
+  RINGS.forEach((r) => {
+    const w = 'indicador=' + r.id, c = el('article', 'uc-card');
+    const lbl = el('div', 'uc-lbl'); lbl.append(el('span', null, r.label), mk('kpis', w, 'janela', 'txt'));
+    const box = el('div', 'uc-ringbox'), ring = el('div', 'dash-skeleton'); ring.dataset.source = 'kpis'; ring.id = 'uc-ring-' + r.id; ring.style.minHeight = '120px';
+    const ctr = el('div', 'c'), big = el('div', 'uc-big'); big.append(mk('kpis', w, 'valor', r.fmt)); ctr.append(big, mk('kpis', w, 'unidade', 'txt'));
+    box.append(ring, ctr);
+    const foot = el('div', 'uc-ringfoot'); const a = el('span');
+    a.append(r.id === 'moagem' ? 'Capacidade ' : 'Meta ', mk('kpis', w, 'meta', r.id === 'moagem' ? 'int' : 'd1'));
+    const b = mk('kpis', w, 'delta_pct', 'sgn', 'uc-delta'); b.dataset.delta = '1';
+    foot.append(a, b); c.append(lbl, box, foot); kp.append(c);
+  });
+  [['etanol', 'Etanol produzido', 'int', '<path d="M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11z"/>'], ['acucar', 'Açúcar produzido', 'int', '<path d="M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8"/>'], ['faturamento', 'Faturamento do mês', 'd1', '<circle cx="9" cy="9" r="5"/><path d="M14 13.500A5 5 0 1 0 20 17M7.500 9h3"/>']].forEach(([id, label, fmt, icon]) => {
+    const w = 'indicador=' + id, c = el('article', 'uc-card');
+    const lbl = el('div', 'uc-lbl'); const ic = el('span', 'uc-kic'); ic.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + icon + '</svg>'; lbl.append(el('span', null, label), ic);
+    const big = el('div', 'uc-big'); big.append(mk('kpis', w, 'valor', fmt)); const sm = el('small'); sm.append(mk('kpis', w, 'unidade', 'txt')); big.append(sm);
+    const sub = el('div', 'uc-sub'); const d = mk('kpis', w, 'delta_pct', 'sgn', 'uc-delta'); d.dataset.delta = '1'; sub.append(d, mk('kpis', w, 'janela', 'txt'));
+    const meter = el('div', 'uc-meter'); const bar = el('i'); bar.dataset.meter = id; meter.append(bar);
+    const mt = el('div', 'uc-sub'); mt.append('Meta ', mk('kpis', w, 'meta', fmt), ' · atingido ', mk('kpis', w, 'atingimento_pct', 'pct'));
+    c.append(lbl, big, sub, meter, mt); kp.append(c);
+  });
+
+  const legend = $('#uc-legend'), MIXC = ['var(--teal)', 'var(--sky)', 'var(--amber)', 'var(--lime)'], MIXID = ['hidrat', 'anidro', 'vhp', 'cristal'];
+  MIXID.forEach((id, i) => {
+    const row = el('div'), sw = el('i'); sw.style.background = MIXC[i];
+    const w = 'id=' + id; row.append(sw, mk('mix', w, 'produto', 'txt'), mk('mix', w, 'percentual', 'pct'));
+    row.lastChild.style.cssText = 'margin-left:auto;font-variant-numeric:tabular-nums';
+    legend.append(row);
+  });
+  [$('#uc-prog'), $('#uc-prog-h')].forEach((prog) => ['cana', 'etanol', 'acucar'].forEach((id) => {
+    const w = 'id=' + id, g = el('div'), t = el('div', 't'), pc = mk('safra', w, 'progresso_pct', 'pct'); pc.style.fontWeight = '600';
+    t.append(mk('safra', w, 'indicador', 'txt'), pc);
+    const tr = el('div', 'track'), bar = el('i'); bar.dataset.bar = id; tr.append(bar);
+    const n = el('div', 'n'); n.append(mk('safra', w, 'acumulado', 'int'), ' de ', mk('safra', w, 'meta', 'int'), ' ', mk('safra', w, 'unidade', 'txt'));
+    g.append(t, tr, n); prog.append(g);
+  }));
+
+  // ---------- helpers ----------
+  const status = (ids) => ids.map((i) => dash.data(i).status);
+  const failLine = (msg) => { const d = el('div', 'uc-fail'); d.append(el('i'), el('span', null, msg || 'Falha ao carregar')); return d; };
+  const gate = (box, ids) => {
+    const s = status(ids);
+    if (s.every((x) => x === 'ok')) { box.classList.remove('dash-skeleton'); return true; }
+    if (s.some((x) => x === 'error' || x === 'connect' || x === 'declined' || x === 'missing')) { box.classList.remove('dash-skeleton'); box.replaceChildren(failLine()); }
+    else box.classList.add('dash-skeleton');
+    return false;
+  };
+  const shown = (box) => box.offsetParent !== null;
+  const tw = (svg, strs, size) => {
+    const t = svg.append('text').attr('font-size', size);
+    let m = 0; strs.forEach((s) => { t.text(s); m = Math.max(m, t.node().getComputedTextLength()); }); t.remove(); return m;
+  };
+  const frame = (box, h) => {
+    box.replaceChildren();
+    const w = Math.max(box.clientWidth, 280);
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', '0 0 ' + w + ' ' + h);
+    return { svg, w };
+  };
+  const tipFor = (box) => { const t = el('div', 'uc-tip'); t.hidden = true; box.append(t); return t; };
+  const showTip = (t, box, cx, cy, date, lines) => {
+    t.replaceChildren(el('div', 'd', date));
+    lines.forEach(([c, txt]) => { const r = el('div', 'r'); const i = el('i'); i.style.background = c; r.append(i, el('span', null, txt)); t.append(r); });
+    t.hidden = false;
+    const x = Math.min(Math.max(cx - t.offsetWidth / 2, 4), box.clientWidth - t.offsetWidth - 4);
+    t.style.transform = 'translate(' + x + 'px,' + Math.max(cy - t.offsetHeight - 10, 0) + 'px)';
+  };
+
+  // ---------- period filter ----------
+  const range = { from: null, to: null };
+  const prodRows = () => dash.data('producao').data.filter((r) => (!range.from || r.dia >= range.from) && (!range.to || r.dia <= range.to));
+  const setPreset = (n) => {
+    const a = dash.data('producao').data; if (!a.length) return;
+    range.to = a[a.length - 1].dia; range.from = a[Math.max(0, a.length - n)].dia;
+  };
+  const syncFilter = () => {
+    const d = dash.data('producao'); if (d.status !== 'ok' || !d.data.length) return;
+    const a = d.data, f = $('#uc-from'), t = $('#uc-to');
+    f.min = t.min = a[0].dia; f.max = t.max = a[a.length - 1].dia;
+    if (document.activeElement !== f) f.value = range.from || '';
+    if (document.activeElement !== t) t.value = range.to || '';
+    const n = prodRows().length, atEnd = range.to === a[a.length - 1].dia;
+    document.querySelectorAll('.uc-seg[aria-label="Período"] button').forEach((b) => b.setAttribute('aria-pressed', String(atEnd && +b.dataset.n === n)));
+  };
+
+  function barChart(box, rows, cap) {
+    const h = 250, { svg, w } = frame(box, h);
+    const top = cap * 1.08, ticks = d3.ticks(0, top, 4);
+    const ml = Math.ceil(tw(svg, ticks.map(f0), 11)) + 14, mr = 8, mt = 12, mb = 28;
+    const x = d3.scaleBand(rows.map((r) => r.dia), [ml, w - mr]).padding(0.28);
+    const y = d3.scaleLinear([0, top], [h - mb, mt]);
+    const g = svg.append('g');
+    ticks.forEach((t) => {
+      g.append('line').attr('x1', ml).attr('x2', w - mr).attr('y1', y(t)).attr('y2', y(t)).attr('stroke', '#232B31');
+      g.append('text').attr('x', ml - 8).attr('y', y(t) + 4).attr('text-anchor', 'end').text(f0(t));
+    });
+    const bars = g.selectAll('rect.b').data(rows).join('rect').attr('class', 'b')
+      .attr('x', (r) => x(r.dia)).attr('width', x.bandwidth()).attr('y', (r) => y(r.moagem_t)).attr('height', (r) => y(0) - y(r.moagem_t)).attr('rx', 4)
+      .attr('fill', (r) => (r.moagem_t < cap * 0.7 ? '#FB923C' : '#2DD4BF'));
+    g.append('line').attr('x1', ml).attr('x2', w - mr).attr('y1', y(cap)).attr('y2', y(cap)).attr('stroke', '#F59E0B').attr('stroke-width', 1.5).attr('stroke-dasharray', '5 4');
+    g.append('text').attr('x', ml + 4).attr('y', y(cap) - 6).style('fill', '#F59E0B').text('Capacidade');
+    const step = Math.max(1, Math.ceil(rows.length / Math.max(1, Math.floor((w - ml) / 48))));
+    rows.forEach((r, i) => { if (i % step === 0) g.append('text').attr('x', x(r.dia) + x.bandwidth() / 2).attr('y', h - mb + 17).attr('text-anchor', 'middle').text(fmtD(parseD(r.dia))); });
+    const t = tipFor(box);
+    svg.append('rect').attr('x', ml).attr('y', mt).attr('width', w - ml - mr).attr('height', h - mt - mb).attr('fill', 'transparent')
+      .on('pointermove', (ev) => {
+        const i = Math.max(0, Math.min(rows.length - 1, Math.floor((d3.pointer(ev)[0] - ml) / x.step())));
+        bars.attr('opacity', (_, j) => (j === i ? 1 : 0.45));
+        showTip(t, box, x(rows[i].dia) + x.bandwidth() / 2, y(rows[i].moagem_t), fmtD(parseD(rows[i].dia)), [['#2DD4BF', f0(rows[i].moagem_t) + ' t'], ['#F59E0B', f1(rows[i].moagem_t / cap * 100) + '% da capacidade']]);
+      })
+      .on('pointerleave', () => { bars.attr('opacity', 1); t.hidden = true; });
+  }
+
+  // series cfg: {key,color,name,unit,fmt}
+  function lineChart(box, rows, A, B, ref, prev = []) {
+    const todos = rows.concat(prev);
+    const h = +box.dataset.h || 250, { svg, w } = frame(box, h), mt = 12, mb = 28;
+    const dom = (c, extra) => { let v = rows.map((r) => r[c.key]); if (extra != null) v = v.concat(extra); const lo = d3.min(v), hi = d3.max(v), pad = (hi - lo) * 0.15 || 1; return [lo - pad, hi + pad]; };
+    const y1 = d3.scaleLinear(dom(A, [].concat(ref ? ref.value : [], prev.length ? [d3.min(prev, (r) => r.minimo), d3.max(prev, (r) => r.maximo)] : [])), [h - mb, mt]).nice(4);
+    const y2 = B ? d3.scaleLinear(dom(B), [h - mb, mt]).nice(4) : null;
+    const t1 = y1.ticks(4), t2 = y2 ? y2.ticks(4) : [];
+    const ml = Math.ceil(tw(svg, t1.map(A.fmt), 11)) + 14, mr = B ? Math.ceil(tw(svg, t2.map(B.fmt), 11)) + 14 : 10;
+    const x = d3.scalePoint(todos.map((r) => r.dia), [ml + 6, w - mr - 6]);
+    const gid = 'ucg' + Math.round(Math.random() * 1e6);
+    const lg = svg.append('defs').append('linearGradient').attr('id', gid).attr('x1', 0).attr('x2', 0).attr('y1', 0).attr('y2', 1);
+    [[0, 0.28], [0.5, 0.1], [1, 0]].forEach(([o, op]) => lg.append('stop').attr('offset', o).attr('stop-color', A.color).attr('stop-opacity', op));
+    const g = svg.append('g');
+    t1.forEach((t) => {
+      g.append('line').attr('x1', ml).attr('x2', w - mr).attr('y1', y1(t)).attr('y2', y1(t)).attr('stroke', '#232B31');
+      g.append('text').attr('x', ml - 8).attr('y', y1(t) + 4).attr('text-anchor', 'end').style('fill', A.color).text(A.fmt(t));
+    });
+    if (B) t2.forEach((t) => g.append('text').attr('x', w - mr + 8).attr('y', y2(t) + 4).attr('text-anchor', 'start').style('fill', B.color).text(B.fmt(t)));
+    g.append('path').datum(rows).attr('d', d3.area().curve(d3.curveMonotoneX).x((r) => x(r.dia)).y0(h - mb).y1((r) => y1(r[A.key]))).attr('fill', 'url(#' + gid + ')');
+    const ln = (c, y) => g.append('path').datum(rows).attr('d', d3.line().curve(d3.curveMonotoneX).x((r) => x(r.dia)).y((r) => y(r[c.key]))).attr('fill', 'none').attr('stroke', c.color).attr('stroke-width', 2).attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round');
+    ln(A, y1); if (B) ln(B, y2);
+    if (prev.length) { // previsão: faixa do intervalo + linha tracejada, saindo do último dia real
+      const last = rows[rows.length - 1], v0 = last[A.key];
+      const pts = [{ dia: last.dia, previsto: v0, minimo: v0, maximo: v0 }].concat(prev);
+      g.append('path').datum(pts).attr('d', d3.area().curve(d3.curveMonotoneX).x((r) => x(r.dia)).y0((r) => y1(r.minimo)).y1((r) => y1(r.maximo))).attr('fill', A.color).attr('opacity', 0.18);
+      g.append('path').datum(pts).attr('d', d3.line().curve(d3.curveMonotoneX).x((r) => x(r.dia)).y((r) => y1(r.previsto))).attr('fill', 'none').attr('stroke', A.color).attr('stroke-width', 2).attr('stroke-dasharray', '5 4').attr('stroke-linecap', 'round');
+    }
+    if (ref) {
+      g.append('line').attr('x1', ml).attr('x2', w - mr).attr('y1', y1(ref.value)).attr('y2', y1(ref.value)).attr('stroke', '#F59E0B').attr('stroke-width', 1.5).attr('stroke-dasharray', '5 4');
+      g.append('text').attr('x', ml + 4).attr('y', y1(ref.value) - 6).style('fill', '#F59E0B').text(ref.label);
+    }
+    const step = Math.max(1, Math.ceil(todos.length / Math.max(1, Math.floor((w - ml - mr) / 48))));
+    todos.forEach((r, i) => { if (i % step === 0) g.append('text').attr('x', x(r.dia)).attr('y', h - mb + 17).attr('text-anchor', 'middle').text(fmtD(parseD(r.dia))); });
+    const rule = g.append('line').attr('y1', mt).attr('y2', h - mb).attr('stroke', '#8DA0AF').attr('stroke-dasharray', '3 3').attr('opacity', 0);
+    const dot = (c) => g.append('circle').attr('r', 4.5).attr('fill', c).attr('stroke', '#0B0F12').attr('stroke-width', 2).attr('opacity', 0);
+    const d1 = dot(A.color), d2 = B ? dot(B.color) : null;
+    const t = tipFor(box), x0 = x(rows[0].dia), span = x.step();
+    svg.append('rect').attr('x', ml).attr('y', mt).attr('width', w - ml - mr).attr('height', h - mt - mb).attr('fill', 'transparent')
+      .on('pointermove', (ev) => {
+        const i = Math.max(0, Math.min(todos.length - 1, Math.round((d3.pointer(ev)[0] - x0) / span)));
+        if (i >= rows.length) {
+          const p = prev[i - rows.length], px = x(p.dia);
+          rule.attr('x1', px).attr('x2', px).attr('opacity', 1);
+          d1.attr('cx', px).attr('cy', y1(p.previsto)).attr('opacity', 1); if (B) d2.attr('opacity', 0);
+          showTip(t, box, px, y1(p.previsto), fmtD(parseD(p.dia)), [[A.color, 'Previsão ' + A.fmt(p.previsto) + ' ' + A.unit], [A.color, 'Intervalo 80%: ' + A.fmt(p.minimo) + '–' + A.fmt(p.maximo) + ' ' + A.unit]]);
+          return;
+        }
+        const r = rows[i], cx = x(r.dia);
+        rule.attr('x1', cx).attr('x2', cx).attr('opacity', 1);
+        d1.attr('cx', cx).attr('cy', y1(r[A.key])).attr('opacity', 1); if (B) d2.attr('cx', cx).attr('cy', y2(r[B.key])).attr('opacity', 1);
+        const lines = [[A.color, A.name + ' ' + A.fmt(r[A.key]) + ' ' + A.unit]]; if (B) lines.push([B.color, B.name + ' ' + B.fmt(r[B.key]) + ' ' + B.unit]);
+        showTip(t, box, cx, B ? Math.min(y1(r[A.key]), y2(r[B.key])) : y1(r[A.key]), fmtD(parseD(r.dia)), lines);
+      })
+      .on('pointerleave', () => { rule.attr('opacity', 0); d1.attr('opacity', 0); if (B) d2.attr('opacity', 0); t.hidden = true; });
+  }
+
+  function drawProduction() {
+    const b1 = $('#uc-ch-moagem'), b2 = $('#uc-ch-prod'), b3 = $('#uc-ch-atr');
+    if (!shown(b1)) return;
+    if (dash.data('producao').status === 'ok' && !range.from) setPreset(15);
+    syncFilter();
+    const ok1 = gate(b1, ['producao', 'kpis']), ok2 = gate(b2, ['producao']), ok3 = gate(b3, ['producao', 'kpis']);
+    if (!ok1 && !ok2 && !ok3) return;
+    const rows = ok2 || ok1 || ok3 ? prodRows() : [];
+    const few = () => failLine('Escolha pelo menos dois dias');
+    const kpi = (id) => dash.data('kpis').data.find((r) => r.indicador === id);
+    if (ok1) { if (rows.length < 2) b1.replaceChildren(few()); else barChart(b1, rows, kpi('moagem').meta); }
+    if (ok2) { if (rows.length < 2) b2.replaceChildren(few()); else lineChart(b2, rows, { key: 'etanol_m3', color: '#22C55E', name: 'Etanol', unit: 'm³', fmt: f0 }, { key: 'acucar_t', color: '#FACC15', name: 'Açúcar', unit: 't', fmt: f0 }); }
+    if (ok3) { if (rows.length < 2) b3.replaceChildren(few()); else lineChart(b3, rows, { key: 'atr_kg_t', color: '#FACC15', name: 'ATR', unit: 'kg/t', fmt: f1 }, null, { value: kpi('atr').meta, label: 'Meta' }); }
+    drawTable(rows);
+  }
+
+  let sort = { k: 'dia', dir: -1 };
+  function drawTable(rowsIn) {
+    const tb = $('#uc-tb'); if (!shown(tb) || dash.data('producao').status !== 'ok') return;
+    const rows = (rowsIn || prodRows()).slice().sort((a, b) => (a[sort.k] > b[sort.k] ? 1 : a[sort.k] < b[sort.k] ? -1 : 0) * sort.dir);
+    document.querySelectorAll('#uc-tbl th.s').forEach((th) => th.setAttribute('aria-sort', th.dataset.k === sort.k ? (sort.dir > 0 ? 'ascending' : 'descending') : 'none'));
+    tb.replaceChildren(...rows.map((r) => {
+      const tr = el('tr'); tr.dataset.key = r.dia;
+      tr.append(el('td', null, fmtFull(parseD(r.dia))), el('td', null, f0(r.moagem_t)), el('td', null, f0(r.etanol_m3)), el('td', null, f0(r.acucar_t)), el('td', null, f1(r.atr_kg_t)));
+      return tr;
+    }));
+  }
+
+  function drawRings() {
+    RINGS.forEach((cfg) => {
+      const box = $('#uc-ring-' + cfg.id);
+      if (!shown(box) || !gate(box, ['kpis'])) return;
+      const r = dash.data('kpis').data.find((k) => k.indicador === cfg.id);
+      const S = 200, c = S / 2, rad = 80, sw = 16, C = 2 * Math.PI * rad, arc = 0.75 * C;
+      box.replaceChildren();
+      const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', '0 0 ' + S + ' ' + S);
+      const rot = 'rotate(135 ' + c + ' ' + c + ')';
+      svg.append('circle').attr('cx', c).attr('cy', c).attr('r', rad).attr('fill', 'none').attr('stroke', '#171E23').attr('stroke-width', sw).attr('stroke-linecap', 'round').attr('stroke-dasharray', arc + ' ' + C).attr('transform', rot);
+      const frac = Math.min(1, r.valor / (r.meta * cfg.max));
+      svg.append('circle').attr('cx', c).attr('cy', c).attr('r', rad).attr('fill', 'none').style('stroke', cfg.color).attr('stroke-width', sw).attr('stroke-linecap', 'round').attr('stroke-dasharray', frac * arc + ' ' + C).attr('transform', rot);
+      const ang = (135 + (1 / cfg.max) * 270) * Math.PI / 180;
+      svg.append('line').attr('x1', c + (rad - sw / 2 - 3) * Math.cos(ang)).attr('y1', c + (rad - sw / 2 - 3) * Math.sin(ang)).attr('x2', c + (rad + sw / 2 + 3) * Math.cos(ang)).attr('y2', c + (rad + sw / 2 + 3) * Math.sin(ang)).attr('stroke', '#F59E0B').attr('stroke-width', 2.5).attr('stroke-linecap', 'round');
+    });
+  }
+
+  function drawDonut() {
+    const box = $('#uc-donut');
+    if (!shown(box) || !gate(box, ['mix'])) return;
+    const rows = dash.data('mix').data;
+    box.replaceChildren();
+    const S = Math.min(220, Math.max(box.clientWidth, 160)), R = S / 2;
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', '0 0 ' + S + ' ' + S).style('max-width', S + 'px').style('margin', '0 auto');
+    const g = svg.append('g').attr('transform', 'translate(' + R + ',' + R + ')');
+    const arcs = d3.pie().sort(null).value((r) => r.percentual).padAngle(0.025)(rows);
+    const arc = d3.arc().innerRadius(R * 0.62).outerRadius(R - 4).cornerRadius(5);
+    const c1 = g.append('text').attr('text-anchor', 'middle').attr('y', -4).style('font-size', '12px').text('Mix de');
+    const c2 = g.append('text').attr('text-anchor', 'middle').attr('y', 18).style('font-family', 'var(--font-anthropic-sans)').style('font-size', '22px').style('fill', '#E8EEF3').text('ATR');
+    const paths = g.selectAll('path').data(arcs).join('path').attr('d', arc).attr('fill', (d) => MIXC[Math.max(0, MIXID.indexOf(d.data.id))])
+      .on('pointerenter', (ev, d) => { paths.attr('opacity', (x) => (x === d ? 1 : 0.4)); c1.text(d.data.produto); c2.text(f1(d.data.percentual) + '%'); })
+      .on('pointerleave', () => { paths.attr('opacity', 1); c1.text('Mix de'); c2.text('ATR'); });
+  }
+
+  function drawBars() {
+    if (dash.data('safra').status === 'ok') dash.data('safra').data.forEach((r) => { document.querySelectorAll('[data-bar="' + r.id + '"]').forEach((b) => { b.style.width = r.progresso_pct + '%'; }); });
+    if (dash.data('kpis').status === 'ok') dash.data('kpis').data.forEach((r) => { const b = $('[data-meter="' + r.indicador + '"]'); if (b) b.style.width = Math.min(100, r.atingimento_pct) + '%'; });
+  }
+
+  let lv = '';
+  function drawAlerts() {
+    const tb = $('#uc-alerts'), d = dash.data('alertas');
+    if (!shown(tb) || d.status !== 'ok') return;
+    const slug = (s) => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    tb.replaceChildren(...d.data.filter((r) => !lv || r.nivel === lv).map((r) => {
+      const tr = el('tr', 'n-' + slug(r.nivel)); tr.dataset.key = r.id;
+      const c = el('td'); c.append(el('span', 'uc-lv', r.nivel));
+      tr.append(el('td', null, r.hora), c, el('td', null, r.area), el('td', null, r.mensagem));
+      return tr;
+    }));
+  }
+
+  function drawHome() {
+    const tb = $('#uc-alerts-h'), d = dash.data('alertas');
+    if (shown(tb) && d.status === 'ok') {
+      const slug = (s) => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      tb.replaceChildren(...d.data.slice(0, 6).map((r) => {
+        const tr = el('tr', 'n-' + slug(r.nivel)); tr.dataset.key = r.id;
+        const c = el('td'); c.append(el('span', 'uc-lv', r.nivel));
+        tr.append(el('td', null, r.hora), c, el('td', null, r.area), el('td', null, r.mensagem));
+        return tr;
+      }));
+    }
+    const box = $('#uc-ch-home');
+    if (!shown(box) || !gate(box, ['producao'])) return;
+    const pv = dash.data('previsao'), prev = pv.status === 'ok' ? pv.data : [];
+    $('#uc-key-prev').hidden = !prev.length;
+    lineChart(box, dash.data('producao').data.slice(-15), { key: 'etanol_m3', color: '#22C55E', name: 'Etanol', unit: 'm³', fmt: f0 }, { key: 'acucar_t', color: '#FACC15', name: 'Açúcar', unit: 't', fmt: f0 }, undefined, prev);
+  }
+
+  function fillMarks() {
+    document.querySelectorAll('.uc [data-fmt]').forEach((m) => {
+      const d = dash.data(m.dataset.source);
+      if (d.status !== 'ok') return;
+      const r = m.dataset.row != null ? d.data[+m.dataset.row] : rowOf(d, m.dataset.where);
+      const v = r ? r[m.dataset.field] : undefined;
+      m.textContent = v == null ? '—' : (FM[m.dataset.fmt] || FM.txt)(v);
+      if (m.dataset.delta) { m.classList.toggle('up', v > 0); m.classList.toggle('down', v < 0); }
+    });
+    const u = dash.data('usina');
+    if (u.status === 'ok' && u.data[0]) $('#uc-av').textContent = String(u.data[0].usuario_nome || '').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
+    if (dash.data('etapas').status === 'ok') document.querySelectorAll('.uc-stage').forEach((s) => { const r = rowOf(dash.data('etapas'), 'ordem=' + s.dataset.ordem); if (r) s.dataset.state = r.status; });
+  }
+
+  // ---------- tabs and controls ----------
+  const TABS = ['visao', 'producao', 'safra'];
+  function drawAll() { fillMarks(); drawBars(); drawRings(); drawProduction(); drawDonut(); drawAlerts(); drawHome(); }
+  function showTab(t) {
+    TABS.forEach((x) => { $('#uc-v-' + x).hidden = x !== t; });
+    document.querySelectorAll('.uc-nav2 button').forEach((b) => { if (b.dataset.tab === t) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+    drawAll(); dash.setLink('uc-v-' + t);
+  }
+  document.querySelectorAll('.uc-nav2 button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+  document.querySelectorAll('.uc-seg[aria-label="Período"] button').forEach((b) => b.addEventListener('click', () => { setPreset(+b.dataset.n); drawProduction(); }));
+  const dateIn = (id, key) => {
+    const i = $(id);
+    i.addEventListener('change', () => {
+      if (!i.value || !i.validity.valid) return;
+      range[key] = i.value;
+      if (range.from > range.to) { if (key === 'from') range.to = range.from; else range.from = range.to; }
+      drawProduction();
+    });
+    i.addEventListener('blur', syncFilter);
+  };
+  dateIn('#uc-from', 'from'); dateIn('#uc-to', 'to');
+  document.querySelectorAll('#uc-tbl th.s').forEach((th) => th.addEventListener('click', () => {
+    sort = { k: th.dataset.k, dir: sort.k === th.dataset.k ? -sort.dir : (th.dataset.k === 'dia' ? -1 : -1) };
+    drawTable();
+  }));
+  document.querySelectorAll('#uc-lvf button').forEach((b) => b.addEventListener('click', () => {
+    lv = b.dataset.lv;
+    document.querySelectorAll('#uc-lvf button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    drawAlerts();
+  }));
+
+  let first = true;
+  IDS.forEach((i) => dash.data(i));
+  dash.data('previsao');
+  dash.onData(() => {
+    drawAll();
+    if (first && IDS.every((i) => dash.data(i).status === 'ok')) {
+      first = false;
+      const named = document.getElementById(location.hash.slice(1));
+      if (named && named.id.indexOf('uc-v-') === 0) showTab(named.id.slice(5));
+    }
+  });
+})();
+</script>
+</body>
+</html>

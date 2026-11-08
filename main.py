@@ -1,20 +1,20 @@
 """API do painel da Usina Canavial (FastAPI).
 
 As rotas /api/* devolvem o mesmo formato dos arquivos de dados-exemplo/, mas lendo o
-banco SQLite que o simulador alimenta. A raiz (/) serve o index.html.
+banco SQLite que o simulador alimenta. A raiz (/) serve o painel 3D (index.html) e /2d o painel 2D.
 
     uvicorn main:app --reload
 """
 from contextlib import asynccontextmanager
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from banco import (RAIZ, REGRAS, HistoricoSafra, LeituraSensor, Ocorrencia, ProducaoDiaria,
-                   em_alarme, engine, ler_json, semear)
+from banco import (CAPACIDADES, ETAPAS_3D, LIMITES_TEMP, RAIZ, REGRAS, SENSOR_GRAFICO, HistoricoSafra,
+                   LeituraSensor, Ocorrencia, ProducaoDiaria, em_alarme, engine, fmt_br, ler_json, semear)
 from previsao import prever_etanol
 
 INICIO_SAFRA = date(2026, 4, 11)  # dia 190 da safra = 18/10/2026
@@ -164,11 +164,66 @@ def safra(s: Session = Sessao):
     return resposta
 
 
+def alertas_ativos(atuais: dict) -> list[dict]:
+    """Regras em alarme agora, calculadas sobre as últimas leituras do banco."""
+    ativos = []
+    for r in REGRAS:
+        valor = atuais.get((r["etapa"], r["sensor"]))
+        if valor is not None and em_alarme(r, valor):
+            casas = 0 if r["sensor"] == "Pressão de vapor" else 1
+            ativos.append(dict(id=r["id"], etapa=r["etapa"], area=r["area"], valor=valor,
+                               mensagem=r["texto"].format(valor=fmt_br(valor, casas))))
+    return ativos
+
+
+@app.get("/api/cena")
+def cena(s: Session = Sessao):
+    """Dados das camadas do painel 3D: temperatura/limite, produção/capacidade e alertas ativos."""
+    atuais = leituras_atuais(s)
+    ativos = alertas_ativos(atuais)
+    etapas_cena = {}
+    for id_, nome in ETAPAS_3D.items():
+        limite, sensor = LIMITES_TEMP[id_]
+        if sensor:
+            temp = atuais.get((nome, sensor))
+        else:  # fermentação: dorna mais quente
+            temps = [v for (e, n), v in atuais.items() if e == nome and n.startswith("Temperatura da dorna")]
+            temp = max(temps) if temps else None
+        sensores, capacidade = CAPACIDADES[id_]
+        reais = [atuais.get((nome, x)) for x in sensores]
+        producao = sum(reais) if None not in reais else None
+        etapas_cena[id_] = dict(temperatura=temp, limite_temp=limite, producao=producao,
+                                capacidade=capacidade,
+                                alertas=[a for a in ativos if a["etapa"] == nome])
+    return dict(etapas=etapas_cena, alertas=ativos,
+                dornas={n.rsplit(" ", 1)[1]: v for (e, n), v in atuais.items()
+                        if e == "Fermentação" and n.startswith("Temperatura da dorna")})
+
+
+@app.get("/api/historico")
+def historico(minutos: int = 5, s: Session = Sessao):
+    """Série recente do sensor de gráfico de cada etapa (até 120 min)."""
+    minutos = max(1, min(minutos, 120))
+    desde = datetime.now() - timedelta(minutes=minutos)
+    series = {}
+    for id_, (etapa, sensor) in SENSOR_GRAFICO.items():
+        linhas = s.execute(select(LeituraSensor.ts, LeituraSensor.valor)
+                           .where(LeituraSensor.etapa == etapa, LeituraSensor.sensor == sensor,
+                                  LeituraSensor.ts >= desde).order_by(LeituraSensor.ts)).all()
+        series[id_] = [dict(ts=t.isoformat(timespec="seconds"), v=v) for t, v in linhas]
+    return dict(minutos=minutos, series=series)
+
+
 # ---- arquivos do painel (só img-*.js e dash-shim.js: a pasta também guarda o banco e o .git)
 
 @app.get("/", include_in_schema=False)
 def pagina():
-    return FileResponse(RAIZ / "index.html")
+    return FileResponse(RAIZ / "index.html")  # painel 3D
+
+
+@app.get("/2d", include_in_schema=False)
+def pagina_2d():
+    return FileResponse(RAIZ / "painel2d.html")  # painel 2D antigo
 
 
 @app.get("/{nome}.js", include_in_schema=False)
