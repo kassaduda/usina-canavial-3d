@@ -133,11 +133,6 @@ Abra <http://127.0.0.1:8001> para o painel 3D e <http://127.0.0.1:8001/2d> para 
 - Paleta de comandos com Ctrl+K para buscar etapas, alarmes e perguntas.
 - Notificações de alarmes críticos (e-mail ou mensagem) e autenticação.
 
-## Créditos
-
-- Vista 3D inspirada no conceito de Dilum Sanjaya.
-- Fotos das etapas do painel 2D: [Pexels](https://www.pexels.com), usadas conforme a licença do site.
-
 ## Autora
 
 Maria Eduarda Kassa — [LinkedIn](https://www.linkedin.com/in/maria-eduarda-kassa)
