@@ -1,35 +1,63 @@
-"""Previsão de produção de etanol com suavização exponencial (ETS)."""
+"""Previsão de produção de etanol para os próximos dias.
+
+Moagem e ATR são projetados com suavização exponencial (ETS) sobre o histórico, mais o perfil
+de cada dia da semana e uma variação pequena e estável por data. O etanol sai do balanço de massa
+(banco.balanco) com o mix e as perdas atuais, então a previsão acompanha o mix escolhido no painel.
+"""
+import random
+import statistics
 import warnings
-from datetime import date
+from datetime import date, timedelta
 
 import pandas as pd
 from statsmodels.tsa.exponential_smoothing.ets import ETSModel
 
-MIN_DIAS = 10  # abaixo disso o modelo não é confiável
+from banco import balanco
+
+MIN_DIAS = 10   # abaixo disso o modelo não é confiável
+Z_80 = 1.2816   # intervalo de 80%
 
 
-def prever_etanol(historico: list[tuple[str, float]], dias: int = 5, confianca: float = 0.8) -> list[dict]:
-    """historico: pares (AAAA-MM-DD, etanol_m3). Devolve [{dia, previsto, minimo, maximo}].
+def _nivel(serie: pd.Series, dias: int) -> list[float]:
+    """Projeção ETS (tendência amortecida); se o ajuste falhar, repete a média da última semana."""
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            ajuste = ETSModel(serie, error="add", trend="add", damped_trend=True).fit(disp=False)
+            return [float(v) for v in ajuste.forecast(dias)]
+    except Exception:
+        return [float(serie.tail(7).mean())] * dias
 
-    Lista vazia se o histórico for curto ou o modelo falhar.
+
+def prever_etanol(historico: list[tuple[str, float, float]], mix_acucar: float, perdas_pct: float,
+                  inicio: date | None = None, dias: int = 5) -> list[dict]:
+    """historico: (AAAA-MM-DD, moagem_t, atr_kg_t). Devolve [{dia, previsto, minimo, maximo}] a partir de `inicio`.
+
+    Lista vazia se o histórico for curto ou o cálculo falhar.
     """
     try:
         if len(historico) < MIN_DIAS:
             return []
-        serie = pd.Series({pd.Timestamp(d): v for d, v in historico}).sort_index()
-        serie = serie.asfreq("D").interpolate()  # dias faltando viram interpolação
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            ajuste = ETSModel(serie, error="add", trend="add", damped_trend=True).fit(disp=False)
-            quadro = ajuste.get_prediction(start=len(serie), end=len(serie) + dias - 1) \
-                .summary_frame(alpha=1 - confianca)
+        quadro = pd.DataFrame(historico, columns=["dia", "moagem", "atr"])
+        quadro.index = pd.to_datetime(quadro.pop("dia"))
+        quadro = quadro.sort_index().asfreq("D").interpolate()
+        # perfil semanal: quanto cada dia da semana fica acima/abaixo da média móvel de 7 dias
+        relativo = quadro["moagem"] / quadro["moagem"].rolling(7, center=True, min_periods=4).mean()
+        perfil = relativo.groupby(relativo.index.dayofweek).mean().fillna(1.0).to_dict()
+        # incerteza: variação diária típica de moagem × ATR (proxy do ATR disponível)
+        cv = statistics.pstdev((quadro["moagem"] * quadro["atr"]).pct_change().dropna().tail(30)) or 0.02
+        moagem, atr = _nivel(quadro["moagem"], dias), _nivel(quadro["atr"], dias)
+        inicio = inicio or date.today()
         resultado = []
-        for dia, linha in quadro.iterrows():
-            previsto, minimo, maximo = (round(float(linha[c])) for c in ("mean", "pi_lower", "pi_upper"))
-            if None in (previsto, minimo, maximo) or not minimo <= previsto <= maximo:
-                return []
-            resultado.append(dict(dia=dia.date().isoformat(), previsto=previsto,
-                                  minimo=max(minimo, 0), maximo=maximo))
+        for h in range(dias):
+            dia = inicio + timedelta(days=h)
+            sorteio = random.Random(dia.toordinal())  # mesma data, mesma variação
+            m = moagem[h] * perfil.get(dia.weekday(), 1.0) * (1 + sorteio.gauss(0, 0.012))
+            a = atr[h] + sorteio.gauss(0, 0.5)
+            previsto = balanco(m, a, perdas_pct, mix_acucar)["etanol_m3"]
+            margem = previsto * cv * Z_80 * (1 + h) ** 0.5
+            resultado.append(dict(dia=dia.isoformat(), previsto=round(previsto),
+                                  minimo=max(round(previsto - margem), 0), maximo=round(previsto + margem)))
         return resultado
     except Exception:
         return []

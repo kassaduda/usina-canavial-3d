@@ -140,10 +140,14 @@ _cache_prev = {"t": -1e9, "dados": []}
 
 @app.get("/api/previsao")
 def previsao(s: Session = Sessao):
-    """Etanol dos próximos 5 dias (ETS, intervalo de 80%); [] se não der para prever."""
-    if time.monotonic() - _cache_prev["t"] > 60:  # o ajuste do modelo é caro: refaz a cada minuto
-        linhas = s.execute(select(ProducaoDiaria.dia, ProducaoDiaria.etanol_m3).order_by(ProducaoDiaria.dia)).all()
-        _cache_prev.update(t=time.monotonic(), dados=prever_etanol([(d, v) for d, v in linhas]))
+    """Etanol de hoje e dos 4 dias seguintes, com o mix atual (intervalo de 80%); [] se não der para prever."""
+    perdas = leituras_atuais(s)[("Indicadores gerais", "Perdas totais")]
+    chave = (date.today(), ler_mix(s), round(perdas))  # refaz ao mudar o dia, o mix ou as perdas
+    if chave != _cache_prev.get("chave") or time.monotonic() - _cache_prev["t"] > 60:  # ajuste caro: no máx. 1/min
+        linhas = s.execute(select(ProducaoDiaria.dia, ProducaoDiaria.moagem_t, ProducaoDiaria.atr_kg_t)
+                           .order_by(ProducaoDiaria.dia)).all()
+        _cache_prev.update(t=time.monotonic(), chave=chave,
+                           dados=prever_etanol([tuple(r) for r in linhas], chave[1], perdas, chave[0]))
     return _cache_prev["dados"]
 
 

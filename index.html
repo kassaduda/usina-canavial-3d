@@ -387,11 +387,11 @@
     { id: 'destilacao', nome: 'Destilação', curto: 'Destilação', pos: [11.3, 10.8], top: 11.2, spark: 1,
       desc: 'O vinho fermentado é aquecido em colunas, onde o álcool se separa da água e chega ao grau final.',
       ind: [
-        { k: 'Etanol hoje', u: 'm³', v: 746, d: 0, step: 0.2 },
+        { k: 'Etanol hoje', u: 'm³', v: 862, d: 0, step: 0.2 },
         { k: 'Pureza', u: '°INPM', v: 93.2, d: 1, n: 0.06 },
         { k: 'Temp. da coluna', u: '°C', v: 78, d: 1, n: 0.4 },
         { k: 'Pressão da coluna', u: 'bar', v: 1.2, d: 2, n: 0.02 },
-        { k: 'Rendimento industrial', u: 'L/t', v: 35.6, d: 1, n: 0.1 },
+        { k: 'Rendimento industrial', u: 'L/t', v: 41.0, d: 1, n: 0.1 },
         { k: 'Perdas totais', u: '%', v: 13.4, d: 1, n: 0.1 } ] },
     { id: 'expedicao', nome: 'Expedição', curto: 'Expedição', pos: [-5.4, 10.3], top: 7.4, spark: 0,
       desc: 'Etanol e açúcar ficam armazenados e saem em caminhões-tanque e carretas rumo aos clientes.',
@@ -411,9 +411,11 @@
   let mixA = 50, bal = null, mixHold = 0;
   const BAL = { acucar: 1.0495, hid: 1.6913, ani: 1.7651, parteHid: 0.6, bagaco: 0.27, vinhaca: 12 };
   function balLocal() {
-    const m = byId.moagem.ind[0].v, rec = m * byId.moagem.ind[2].v / 1000 * (1 - byId.destilacao.ind[5].v / 100);
+    // com a API, parte do ATR recuperado do servidor; sem ela, das leituras de exemplo (mesma fórmula de banco.balanco)
+    const m = apiOk && bal ? bal.moagem_t : byId.moagem.ind[0].v;
+    const rec = apiOk && bal ? bal.atr_recuperado_t : m * byId.moagem.ind[2].v / 1000 * (1 - byId.destilacao.ind[5].v / 100) / (1 - 0.134);
     const aA = rec * mixA / 100, aE = rec - aA, hid = aE * BAL.parteHid / BAL.hid, ani = aE * (1 - BAL.parteHid) / BAL.ani;
-    return { mix_acucar: mixA, acucar_t: aA / BAL.acucar, etanol_m3: hid + ani, bagaco_t: m * BAL.bagaco, vinhaca_m3: (hid + ani) * BAL.vinhaca };
+    return { mix_acucar: mixA, moagem_t: m, atr_recuperado_t: rec, acucar_t: aA / BAL.acucar, etanol_m3: hid + ani, bagaco_t: m * BAL.bagaco, vinhaca_m3: (hid + ani) * BAL.vinhaca };
   }
   function statusOf(s) { if (apiOk) return s.alerts && s.alerts.length ? 'warn' : 'ok'; return s.id === 'fermentacao' && s.ind[0].v > 33 ? 'warn' : 'ok'; }
   function tickData() {
