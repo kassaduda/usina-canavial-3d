@@ -17,8 +17,8 @@ from datetime import datetime, timedelta
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from banco import (INFO_SORTEIO, REGRAS, HistoricoSafra, LeituraSensor, Ocorrencia, ProducaoDiaria,
-                   em_alarme, engine, fmt_br, semear, sensores)
+from banco import (INFO_SORTEIO, REGRAS, HistoricoSafra, LeituraSensor, Ocorrencia, ProducaoDiaria, balanco,
+                   em_alarme, engine, fmt_br, ler_mix, mix_produtos, semear, sensores)
 
 REVERSAO = 0.1           # quanto o valor volta ao alvo a cada ciclo
 CICLOS_POR_SAFRA = 6     # um registro de historico_safra por minuto
@@ -33,6 +33,7 @@ class Simulador:
         self.valores = {k: x["inicial"] for k, x in self.specs.items()}
         self.em_alarme: dict[str, bool] = {}
         self.ciclo = 0
+        self.mix = 50.0
         self.ultimo = time.monotonic()
         with Session(engine) as s:
             ultimos = select(func.max(LeituraSensor.id)).group_by(LeituraSensor.etapa, LeituraSensor.sensor)
@@ -72,9 +73,17 @@ class Simulador:
         extracao = self.v("Recepção e moagem", "Extração")
         ferm = 90.5 - 1.8 * max(0.0, self.v("Fermentação", "Temperatura da dorna 3") - 33) + random.gauss(0, 0.1)
         ferm = min(max(ferm, 80.0), 95.0)
-        etanol = self.v("Destilação", "Hidratado") + self.v("Destilação", "Anidro")
         self.valores[("Fermentação", "Eficiência de fermentação")] = round(ferm, 1)
         self.valores[("Indicadores gerais", "Perdas totais")] = round(100 - extracao * ferm * 0.995 / 100, 1)
+        # Balanço de massa: açúcar e etanol saem do ATR recuperado, divididos pelo mix (ver banco.balanco).
+        b = balanco(self.v("Recepção e moagem", "Cana processada"), self.v("Indicadores gerais", "ATR"),
+                    self.v("Indicadores gerais", "Perdas totais"), self.mix)
+        self.valores[("Destilação", "Hidratado")] = round(b["hidratado_m3"])
+        self.valores[("Destilação", "Anidro")] = round(b["anidro_m3"])
+        self.valores[("Indicadores gerais", "Açúcar produzido")] = round(b["acucar_t"])
+        for produto, pct in mix_produtos(self.mix).items():
+            self.valores[("Mix de produtos", produto)] = round(pct, 1)
+        etanol = self.v("Destilação", "Hidratado") + self.v("Destilação", "Anidro")
         # Fila na recepção cresce com a moagem perto da capacidade (nominal de 24.000 t/dia).
         carga = self.v("Recepção e moagem", "Cana processada") / 24000
         self.valores[("Recepção e moagem", "Fila de recepção")] = max(0, round(4 + 14 * (carga - 0.8) + random.gauss(0, 0.7)))
@@ -138,6 +147,8 @@ class Simulador:
         self.ciclo += 1
         agora, mono = datetime.now(), time.monotonic()
         dt, self.ultimo = mono - self.ultimo, mono
+        with Session(engine) as s:
+            self.mix = ler_mix(s)  # o painel pode ter mudado o mix
         self.variar()
         with Session(engine) as s:
             self.gravar_leituras(s, agora)
@@ -149,7 +160,7 @@ class Simulador:
             self.podar()
         print(f"[{agora:%H:%M:%S}] ciclo {self.ciclo}: "
               f"cana {self.v('Recepção e moagem', 'Cana processada'):.0f} t/dia, "
-              f"dorna 3 {self.v('Fermentação', 'Temperatura da dorna 3'):.1f} °C", flush=True)
+              f"dorna 3 {self.v('Fermentação', 'Temperatura da dorna 3'):.1f} °C, mix {self.mix:.0f}% açúcar", flush=True)
 
 
 def main() -> None:

@@ -18,8 +18,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from banco import (CAPACIDADES, ETAPAS_3D, LIMITES_TEMP, RAIZ, REGRAS, SENSOR_GRAFICO, TEMP_DORNAS, HistoricoSafra,
-                   LeituraSensor, Ocorrencia, ProducaoDiaria, em_alarme, engine, fmt_br, ler_json, semear)
+from banco import (ATR_META, CAPACIDADES, ETAPAS_3D, LIMITES_TEMP, PERDAS_PLANO, RAIZ, REGRAS, SENSOR_GRAFICO,
+                   TEMP_DORNAS, HistoricoSafra, LeituraSensor, Ocorrencia, Parametro, ProducaoDiaria, balanco,
+                   em_alarme, engine, fmt_br, ler_json, ler_mix, mix_produtos, semear)
 from previsao import prever_etanol
 
 INICIO_SAFRA = date(2026, 4, 11)  # dia 190 da safra = 18/10/2026
@@ -110,8 +111,12 @@ def kpis(s: Session = Sessao):
         "etanol": (hoje.etanol_m3, ontem.etanol_m3),
         "acucar": (hoje.acucar_t, ontem.acucar_t),
     }
+    # Metas de etanol e açúcar seguem o mix: o que o plano (ATR e perdas de referência) daria com a moagem de hoje.
+    plano = balanco(hoje.moagem_t, ATR_META, PERDAS_PLANO, ler_mix(s))
     resposta = []
     for k in ler_json("kpis"):
+        if k["indicador"] in ("etanol", "acucar"):
+            k["meta"] = round(plano[f"{k['indicador']}_{'m3' if k['indicador'] == 'etanol' else 't'}"])
         if k["indicador"] in valores:
             atual, anterior = valores[k["indicador"]]
             k["delta_pct"] = round((atual - anterior) / anterior * 100, 1)
@@ -144,15 +149,49 @@ def previsao(s: Session = Sessao):
 
 @app.get("/api/mix")
 def mix(s: Session = Sessao):
-    atuais = leituras_atuais(s)
+    """Participação de cada produto no ATR, a partir do mix açúcar/etanol em vigor."""
     itens = ler_json("mix")
-    brutos = [atuais[("Mix de produtos", m["produto"])] for m in itens]
-    total = sum(brutos)
-    pcts = [round(b / total * 100, 1) for b in brutos]
+    partes = mix_produtos(ler_mix(s))
+    pcts = [round(partes[m["produto"]], 1) for m in itens]
     pcts[-1] = round(100 - sum(pcts[:-1]), 1)  # fecha em 100
     for m, p in zip(itens, pcts):
         m["percentual"] = p
     return itens
+
+
+class MixAcucar(BaseModel):
+    percentual: float = Field(ge=0, le=100, description="% do ATR destinado ao açúcar (o resto vai para o etanol)")
+
+
+@app.get("/api/mix/acucar")
+def ler_mix_acucar(s: Session = Sessao):
+    """Mix açúcar/etanol em vigor (% do ATR)."""
+    m = ler_mix(s)
+    return dict(acucar=round(m, 1), etanol=round(100 - m, 1))
+
+
+@app.put("/api/mix/acucar")
+def alterar_mix_acucar(novo: MixAcucar, s: Session = Sessao):
+    """Altera o mix. O simulador passa a produzir com ele no próximo ciclo; o balanço já reflete na hora."""
+    p = s.get(Parametro, "mix_acucar")
+    if p:
+        p.valor = round(novo.percentual, 1)
+    else:
+        s.add(Parametro(chave="mix_acucar", valor=round(novo.percentual, 1)))
+    s.commit()
+    return dict(ler_mix_acucar(s), balanco=balanco_atual(s))
+
+
+def balanco_atual(s: Session, atuais: dict | None = None) -> dict:
+    atuais = atuais or leituras_atuais(s)
+    return balanco(atuais[("Recepção e moagem", "Cana processada")], atuais[("Indicadores gerais", "ATR")],
+                   atuais[("Indicadores gerais", "Perdas totais")], ler_mix(s))
+
+
+@app.get("/api/balanco")
+def balanco_massa(s: Session = Sessao):
+    """Balanço de massa do dia (t/dia e m³/dia): ATR, açúcar, etanol, bagaço (27% da cana) e vinhaça (12 L/L)."""
+    return balanco_atual(s)
 
 
 def ocorrencia(o: Ocorrencia) -> dict:
@@ -264,7 +303,7 @@ def cena(s: Session = Sessao):
                       .order_by(Ocorrencia.id.desc())).first()
         a.update(alarme_id=f"a{o.id}" if o else None, reconhecido=bool(o and o.reconhecido_em),
                  segundos_ate_reconhecer=ocorrencia(o)["segundos_ate_reconhecer"] if o else None)
-    return montar_cena(atuais, ativos)
+    return dict(montar_cena(atuais, ativos), balanco=balanco_atual(s, atuais))
 
 
 @app.get("/api/historico")

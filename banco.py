@@ -69,6 +69,58 @@ class HistoricoSafra(Base):
     unidade: Mapped[str] = mapped_column(String(10))
 
 
+class Parametro(Base):
+    """Parâmetros de operação ajustáveis pelo painel (ex.: mix açúcar/etanol)."""
+    __tablename__ = "parametros"
+    chave: Mapped[str] = mapped_column(String(30), primary_key=True)
+    valor: Mapped[float] = mapped_column(Float)
+
+
+# ---------------------------------------------------------------- balanço de massa
+
+MIX_PADRAO = 50.0          # % do ATR recuperado destinado ao açúcar
+PERDAS_PLANO = 13.4        # % de perdas totais usada no planejamento (metas)
+ATR_META = 138.0           # kg/t
+FATOR_ACUCAR = 1.0495      # kg de ATR por kg de açúcar (Consecana)
+FATOR_HIDRATADO = 1.6913   # kg de ATR por litro de etanol hidratado
+FATOR_ANIDRO = 1.7651      # kg de ATR por litro de etanol anidro
+PARTE_HIDRATADO = 0.6      # parcela do ATR do etanol que vira hidratado (o resto, anidro)
+PARTE_VHP = 0.8            # parcela do açúcar que é VHP (o resto, cristal)
+BAGACO_POR_CANA = 0.27     # t de bagaço por t de cana
+VINHACA_POR_ETANOL = 12.0  # L de vinhaça por L de etanol
+
+
+def balanco(moagem_t: float, atr_kg_t: float, perdas_pct: float, mix_acucar: float) -> dict:
+    """Balanço de massa do dia: o ATR recuperado se divide entre açúcar e etanol pelo mix."""
+    mix = min(max(mix_acucar, 0.0), 100.0)
+    atr_total = moagem_t * atr_kg_t / 1000                      # t de ATR/dia
+    atr_rec = atr_total * (1 - perdas_pct / 100)
+    atr_acucar, atr_etanol = atr_rec * mix / 100, atr_rec * (1 - mix / 100)
+    hidratado = atr_etanol * PARTE_HIDRATADO / FATOR_HIDRATADO  # t ATR / (kg/L) = m³
+    anidro = atr_etanol * (1 - PARTE_HIDRATADO) / FATOR_ANIDRO
+    etanol = hidratado + anidro
+    return dict(mix_acucar=round(mix, 1), mix_etanol=round(100 - mix, 1), moagem_t=round(moagem_t),
+                atr_kg_t=round(atr_kg_t, 1), perdas_pct=round(perdas_pct, 1),
+                atr_total_t=round(atr_total, 1), atr_recuperado_t=round(atr_rec, 1),
+                acucar_t=round(atr_acucar / FATOR_ACUCAR, 1),
+                acucar_vhp_t=round(atr_acucar / FATOR_ACUCAR * PARTE_VHP, 1),
+                acucar_cristal_t=round(atr_acucar / FATOR_ACUCAR * (1 - PARTE_VHP), 1),
+                etanol_m3=round(etanol, 1), hidratado_m3=round(hidratado, 1), anidro_m3=round(anidro, 1),
+                bagaco_t=round(moagem_t * BAGACO_POR_CANA, 1), vinhaca_m3=round(etanol * VINHACA_POR_ETANOL, 1))
+
+
+def mix_produtos(mix_acucar: float) -> dict[str, float]:
+    """Participação (% do ATR) de cada produto do mix, na ordem de mix.json."""
+    a = mix_acucar
+    return {"Etanol hidratado": (100 - a) * PARTE_HIDRATADO, "Etanol anidro": (100 - a) * (1 - PARTE_HIDRATADO),
+            "Açúcar VHP": a * PARTE_VHP, "Açúcar cristal": a * (1 - PARTE_VHP)}
+
+
+def ler_mix(s: Session) -> float:
+    p = s.get(Parametro, "mix_acucar")
+    return p.valor if p else MIX_PADRAO
+
+
 def ler_json(nome: str) -> list[dict]:
     return json.loads((PASTA_DADOS / f"{nome}.json").read_text(encoding="utf-8"))
 
@@ -110,13 +162,13 @@ def sensores() -> list[dict]:
         ))
     extras = [
         ("Indicadores gerais", "ATR", "kg/t", 141.2, 1, 0.002),
-        ("Indicadores gerais", "Açúcar produzido", "t/dia", 2180, 0, 0.003),
+        ("Indicadores gerais", "Açúcar produzido", "t/dia", 1223, 0, 0.003),
         ("Indicadores gerais", "Faturamento", "R$ mi", 64.8, 1, 0.002),
         ("Utilidades", "Pressão de vapor", "bar", 42.0, 1, 0.006),
         # Indicadores do setor: o simulador recalcula a cada ciclo (ver Simulador.derivados).
         ("Fermentação", "Eficiência de fermentação", "%", 90.5, 1, 0.001),
         ("Indicadores gerais", "Perdas totais", "%", 13.4, 1, 0.001),
-        ("Indicadores gerais", "Rendimento industrial", "L/t", 81.0, 1, 0.001),
+        ("Indicadores gerais", "Rendimento industrial", "L/t", 35.6, 1, 0.001),
         ("Recepção e moagem", "Fila de recepção", "caminhões", 5, 0, 0.001),
         # Temperaturas que faltavam para a camada de temperatura do painel 3D.
         ("Recepção e moagem", "Temperatura do caldo", "°C", 32.5, 1, 0.01),
@@ -257,4 +309,10 @@ def semear() -> None:
                 ts=agora, indicador_id=x["id"], indicador=x["indicador"],
                 acumulado=x["acumulado"], meta=x["meta"], unidade=x["unidade"],
             ) for x in ler_json("safra"))
+        if s.get(Parametro, "mix_acucar") is None:
+            # Primeira vez com o balanço de massa: recalcula etanol e açúcar do histórico pela moagem e ATR.
+            s.add(Parametro(chave="mix_acucar", valor=MIX_PADRAO))
+            for d in s.scalars(select(ProducaoDiaria)):
+                b = balanco(d.moagem_t, d.atr_kg_t, PERDAS_PLANO, MIX_PADRAO)
+                d.etanol_m3, d.acucar_t = round(b["etanol_m3"]), round(b["acucar_t"])
         s.commit()
