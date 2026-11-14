@@ -111,6 +111,34 @@ def balanco(moagem_t: float, atr_kg_t: float, perdas_pct: float, mix_acucar: flo
                 bagaco_t=round(moagem_t * BAGACO_POR_CANA, 1), vinhaca_m3=round(etanol * VINHACA_POR_ETANOL, 1))
 
 
+# ---------------------------------------------------------------- cogeração
+
+VAPOR_POR_BAGACO = 2.1      # t de vapor por t de bagaço com 50,4% de umidade (caldeira)
+VAPOR_POR_MWH = 5.4         # t de vapor por MWh no turbogerador, a 42 bar
+POTENCIA_MAX = 110.0        # MW, capacidade do turbogerador
+CONSUMO_BASE = 27.0         # kWh/t de cana consumidos pela usina (mais 3 kWh/t com 100% de açúcar)
+QUEIMA_PADRAO = 1.0         # fração média do bagaço produzido que vai para a caldeira
+ESTOQUE_BAGACO = 15000.0    # t no pátio, valor inicial
+ESTOQUE_BAGACO_MAX = 30000.0
+
+
+def cogeracao(moagem_t: float, umidade_pct: float, pressao_bar: float, mix_acucar: float,
+              queimado_t: float | None = None) -> dict:
+    """Caldeira e turbogerador: bagaço queimado vira vapor e energia; a usina consome uma parte e exporta o resto."""
+    bagaco = moagem_t * BAGACO_POR_CANA
+    queimado = bagaco * QUEIMA_PADRAO if queimado_t is None else queimado_t
+    vapor = queimado / 24 * VAPOR_POR_BAGACO * (100 - umidade_pct) / 50.4          # t/h
+    gerada = min(vapor / VAPOR_POR_MWH * (max(pressao_bar, 1) / 42) ** 0.3, POTENCIA_MAX)
+    consumida = moagem_t * (CONSUMO_BASE + 3 * mix_acucar / 100) / 24 / 1000        # MW
+    exportada = max(gerada - consumida, 0.0)
+    por_t = (lambda mw: mw * 24 * 1000 / moagem_t if moagem_t else 0.0)            # MW -> kWh/t de cana
+    return dict(bagaco_produzido_t=round(bagaco, 1), bagaco_queimado_t=round(queimado, 1),
+                bagaco_sobra_t=round(bagaco - queimado, 1), vapor_t_h=round(vapor, 1),
+                gerada_mw=round(gerada, 1), consumida_mw=round(consumida, 1), exportada_mw=round(exportada, 1),
+                capacidade_mw=POTENCIA_MAX, gerada_kwh_t=round(por_t(gerada), 1),
+                consumida_kwh_t=round(por_t(consumida), 1), exportada_kwh_t=round(por_t(exportada), 1))
+
+
 def mix_produtos(mix_acucar: float) -> dict[str, float]:
     """Participação (% do ATR) de cada produto do mix, na ordem de mix.json."""
     a = mix_acucar
@@ -167,6 +195,12 @@ def sensores() -> list[dict]:
         ("Indicadores gerais", "Açúcar produzido", "t/dia", 1413, 0, 0.003),
         ("Indicadores gerais", "Faturamento", "R$ mi", 64.8, 1, 0.002),
         ("Utilidades", "Pressão de vapor", "bar", 42.0, 1, 0.006),
+        # Cogeração: o simulador recalcula a cada ciclo (ver Simulador.cogerar).
+        ("Utilidades", "Estoque de bagaço", "t", 15000, 0, 0.001),
+        ("Utilidades", "Bagaço queimado", "t/dia", 5670, 0, 0.001),
+        ("Utilidades", "Energia gerada", "MW", 91.9, 1, 0.001),
+        ("Utilidades", "Energia consumida", "MW", 24.9, 1, 0.001),
+        ("Utilidades", "Energia exportada", "MW", 67.0, 1, 0.001),
         # Indicadores do setor: o simulador recalcula a cada ciclo (ver Simulador.derivados).
         ("Fermentação", "Eficiência de fermentação", "%", 90.5, 1, 0.001),
         ("Indicadores gerais", "Perdas totais", "%", 13.4, 1, 0.001),

@@ -17,13 +17,15 @@ from datetime import datetime, timedelta
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from banco import (INFO_SORTEIO, REGRAS, HistoricoSafra, LeituraSensor, Ocorrencia, ProducaoDiaria, balanco,
-                   em_alarme, engine, fmt_br, ler_mix, mix_produtos, semear, sensores)
+from banco import (ESTOQUE_BAGACO_MAX, INFO_SORTEIO, QUEIMA_PADRAO, REGRAS, HistoricoSafra, LeituraSensor, Ocorrencia,
+                   ProducaoDiaria, balanco, cogeracao, em_alarme, engine, fmt_br, ler_mix, mix_produtos, semear,
+                   sensores)
 
 REVERSAO = 0.1           # quanto o valor volta ao alvo a cada ciclo
 CICLOS_POR_SAFRA = 6     # um registro de historico_safra por minuto
 RETENCAO = timedelta(hours=24)
 CHANCE_INFO = 0.003      # chance de um aviso "Info" por ciclo
+ACELERA_PATIO = 1440     # o estoque de bagaço evolui 1440x mais rápido (1 min = 1 dia), para a pilha variar na demo
 
 
 class Simulador:
@@ -46,6 +48,7 @@ class Simulador:
                                   .order_by(HistoricoSafra.id.desc())).first()
                 self.safra[id_] = dict(linha=linha, acumulado=linha.acumulado)
                 s.expunge(linha)
+        self.estoque = self.valores[("Utilidades", "Estoque de bagaço")]  # t de bagaço no pátio
         # Estado inicial das regras, sem gerar alerta: os alertas de exemplo já cobrem esse caso.
         for r in REGRAS:
             self.em_alarme[r["id"]] = em_alarme(r, self.valores[(r["etapa"], r["sensor"])])
@@ -89,6 +92,25 @@ class Simulador:
         self.valores[("Recepção e moagem", "Fila de recepção")] = max(0, round(4 + 14 * (carga - 0.8) + random.gauss(0, 0.7)))
         self.valores[("Indicadores gerais", "Rendimento industrial")] = \
             round(etanol * 1000 / self.v("Recepção e moagem", "Cana processada"), 1)
+
+    def cogerar(self, dt: float) -> None:
+        """Caldeira queima mais ou menos bagaço conforme a demanda de vapor (ciclo de 10 min);
+
+        a sobra (ou falta) muda o estoque do pátio, que realimenta a queima para não esvaziar nem transbordar.
+        """
+        chave, estoque = ("Utilidades", "Estoque de bagaço"), self.estoque
+        produzido = self.v("Recepção e moagem", "Cana processada") * 0.27
+        demanda = QUEIMA_PADRAO + 0.10 * math.sin(2 * math.pi * time.time() / 600)
+        frac = demanda + 0.06 * (estoque / (ESTOQUE_BAGACO_MAX / 2) - 1) + random.gauss(0, 0.004)
+        queimado = produzido * min(max(frac, 0.75), 1.05)
+        self.estoque = min(max(estoque + (produzido - queimado) * dt / 86400 * ACELERA_PATIO, 0), ESTOQUE_BAGACO_MAX)
+        e = cogeracao(self.v("Recepção e moagem", "Cana processada"), self.v("Recepção e moagem", "Umidade do bagaço"),
+                      self.v("Utilidades", "Pressão de vapor"), self.mix, queimado)
+        self.valores[chave] = round(self.estoque)
+        self.valores[("Utilidades", "Bagaço queimado")] = round(queimado)
+        self.valores[("Utilidades", "Energia gerada")] = e["gerada_mw"]
+        self.valores[("Utilidades", "Energia consumida")] = e["consumida_mw"]
+        self.valores[("Utilidades", "Energia exportada")] = e["exportada_mw"]
 
     def dorna3(self) -> float:
         """Dorna 3 oscila entre 32,6 e 34,6 °C (ciclo de 6 min), ~80% do tempo acima de 33 °C."""
@@ -150,6 +172,7 @@ class Simulador:
         with Session(engine) as s:
             self.mix = ler_mix(s)  # o painel pode ter mudado o mix
         self.variar()
+        self.cogerar(dt)
         with Session(engine) as s:
             self.gravar_leituras(s, agora)
             self.atualizar_producao(s)
@@ -160,7 +183,8 @@ class Simulador:
             self.podar()
         print(f"[{agora:%H:%M:%S}] ciclo {self.ciclo}: "
               f"cana {self.v('Recepção e moagem', 'Cana processada'):.0f} t/dia, "
-              f"dorna 3 {self.v('Fermentação', 'Temperatura da dorna 3'):.1f} °C, mix {self.mix:.0f}% açúcar", flush=True)
+              f"dorna 3 {self.v('Fermentação', 'Temperatura da dorna 3'):.1f} °C, mix {self.mix:.0f}% açúcar, "
+              f"exporta {self.v('Utilidades', 'Energia exportada'):.1f} MW", flush=True)
 
 
 def main() -> None:

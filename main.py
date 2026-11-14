@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from banco import (ATR_META, CAPACIDADES, ETAPAS_3D, LIMITES_TEMP, PERDAS_PLANO, RAIZ, REGRAS, SENSOR_GRAFICO,
                    TEMP_DORNAS, HistoricoSafra, LeituraSensor, Ocorrencia, Parametro, ProducaoDiaria, balanco,
-                   em_alarme, engine, fmt_br, ler_json, ler_mix, mix_produtos, semear)
+                   cogeracao, em_alarme, engine, fmt_br, ler_json, ler_mix, mix_produtos, semear)
 from previsao import prever_etanol
 
 INICIO_SAFRA = date(2026, 4, 11)  # dia 190 da safra = 18/10/2026
@@ -192,6 +192,20 @@ def balanco_atual(s: Session, atuais: dict | None = None) -> dict:
                    atuais[("Indicadores gerais", "Perdas totais")], ler_mix(s))
 
 
+def energia_atual(s: Session, atuais: dict | None = None) -> dict:
+    atuais = atuais or leituras_atuais(s)
+    u = lambda n: atuais.get(("Utilidades", n))  # noqa: E731
+    e = cogeracao(atuais[("Recepção e moagem", "Cana processada")], atuais[("Recepção e moagem", "Umidade do bagaço")],
+                  u("Pressão de vapor") or 42.0, ler_mix(s), u("Bagaço queimado"))
+    return dict(e, estoque_bagaco_t=u("Estoque de bagaço"))
+
+
+@app.get("/api/energia")
+def energia(s: Session = Sessao):
+    """Cogeração: bagaço queimado, vapor, energia gerada/consumida/exportada (MW e kWh/t de cana) e estoque de bagaço."""
+    return energia_atual(s)
+
+
 @app.get("/api/balanco")
 def balanco_massa(s: Session = Sessao):
     """Balanço de massa do dia (t/dia e m³/dia): ATR, açúcar, etanol, bagaço (27% da cana) e vinhaça (12 L/L)."""
@@ -307,7 +321,7 @@ def cena(s: Session = Sessao):
                       .order_by(Ocorrencia.id.desc())).first()
         a.update(alarme_id=f"a{o.id}" if o else None, reconhecido=bool(o and o.reconhecido_em),
                  segundos_ate_reconhecer=ocorrencia(o)["segundos_ate_reconhecer"] if o else None)
-    return dict(montar_cena(atuais, ativos), balanco=balanco_atual(s, atuais))
+    return dict(montar_cena(atuais, ativos), balanco=balanco_atual(s, atuais), energia=energia_atual(s, atuais))
 
 
 @app.get("/api/historico")

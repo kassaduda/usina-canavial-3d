@@ -236,6 +236,7 @@
   .mix .mx-a b { color: var(--yellow); } .mix .mx-e b { color: var(--green); }
   .mix .mx-out { flex-basis: 100%; font-family: var(--font-mono); font-size: 11px; }
   .tag.static { pointer-events: none; }
+  .mix.en .mx-out { flex-basis: auto; flex: 1; } .mix.en b { color: var(--yellow); }
   .tl button { border: 1px solid rgba(34, 197, 94, .5); background: rgba(34, 197, 94, .12); color: var(--fg); border-radius: 999px; padding: 3px 10px; font-size: 12px; }
   .fc { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: rgba(255, 255, 255, .04); }
   .fcT { color: var(--muted); font-size: 11.5px; margin-bottom: 8px; }
@@ -339,6 +340,7 @@
       </div>
       <div class="legend" id="legend" hidden><i id="legBar"></i><span id="legA"></span><span id="legB"></span></div>
       <div class="mix"><label for="mixRange">Mix</label><span class="mx-a">Açúcar <b id="mixA">50%</b></span><input type="range" id="mixRange" min="0" max="100" step="1" value="50" aria-label="Mix açúcar/etanol (% do ATR para açúcar)"><span class="mx-e"><b id="mixE">50%</b> Etanol</span><span class="mx-out" id="mixOut"></span></div>
+      <div class="mix en"><span>Energia</span><span class="mx-out" id="enOut"></span></div>
       <div class="tl"><label for="tlRange">Voltar no tempo</label><input type="range" id="tlRange" min="0" max="120" step="1" value="0"><span id="tlTxt">ao vivo</span><button type="button" id="tlLive" hidden>Voltar ao vivo</button></div>
     </section>
 
@@ -408,7 +410,14 @@
   let apiOk = false, cena = {}, cenaAlertas = [], histMode = false, forecast = [], selTruck = null;
   const TANK_CAP = 22000; // m³, capacidade do tanque de etanol
   // Mix açúcar/etanol (% do ATR para açúcar) e balanço de massa; com a API vem de /api/cena, sem ela é calculado aqui
-  let mixA = 50, bal = null, mixHold = 0;
+  let mixA = 50, bal = null, mixHold = 0, energia = null;
+  // Cogeração sem API: mesma conta de banco.cogeracao, com o estoque de bagaço oscilando
+  function energiaLocal() {
+    const m = byId.moagem.ind[0].v, q = m * 0.27 * (1 + 0.1 * Math.sin(T / 60)), vapor = q / 24 * 2.1;
+    const g = Math.min(vapor / 5.4, 110), c = m * (27 + 3 * mixA / 100) / 24000, e = Math.max(g - c, 0);
+    return { gerada_mw: g, consumida_mw: c, exportada_mw: e, exportada_kwh_t: e * 24000 / m, estoque_bagaco_t: 15000 - 9000 * Math.cos(T / 60) };
+  }
+  const energiaNow = () => (apiOk && energia ? energia : energiaLocal());
   const BAL = { acucar: 1.0495, hid: 1.6913, ani: 1.7651, parteHid: 0.6, bagaco: 0.27, vinhaca: 12 };
   function balLocal() {
     // com a API, parte do ATR recuperado do servidor; sem ela, das leituras de exemplo (mesma fórmula de banco.balanco)
@@ -564,9 +573,43 @@
   const sugarPile = new THREE.Mesh(new THREE.ConeGeometry(1.5, 1, 28), mat(0xf6f1e3, { roughness: 0.95 }));
   sugarPile.scale.set(2.3, 1, 1); sugarPile.position.set(-16, 0.62, -12.2); sugarPile.castShadow = true; armazem.add(sugarPile);
   let pileH = 1.2;
-  const armTag = document.createElement('div'); armTag.className = 'tag static';
-  armTag.innerHTML = '<span class="dot" style="background:var(--yellow)"></span><span class="tt">Armazém de açúcar</span><span class="tv"></span>';
-  $('#tags').appendChild(armTag);
+  // etiquetas fixas (sem painel) para as instalações que não são etapas
+  const staticTags = [];
+  function staticTag(nome, cor, p) {
+    const el = document.createElement('div'); el.className = 'tag static';
+    el.innerHTML = `<span class="dot" style="background:${cor}"></span><span class="tt">${nome}</span><span class="tv"></span>`;
+    $('#tags').appendChild(el); staticTags.push({ el, p }); return el;
+  }
+  const armTag = staticTag('Armazém de açúcar', 'var(--yellow)', [-16, 4.2, -12]);
+
+  // 7. Cogeração: pilha de bagaço -> caldeira (com chaminé) -> casa de força com turbogerador -> linha de transmissão
+  const cogen = new THREE.Group(); scene.add(cogen);
+  { box(11.4, 0.12, 4.6, C.plate, 9.6, 0, -12.4, cogen);
+    box(2.6, 5.4, 2.8, C.wall2, 8.4, 0.12, -12.4, cogen); box(2.8, 0.3, 3, C.dark, 8.4, 5.52, -12.4, cogen);   // caldeira
+    cyl(0.55, 11, C.steel, 8.4, 0.12, -14.4, cogen, 20, 0.45); cyl(0.6, 0.5, C.bandO, 8.4, 9.4, -14.4, cogen, 20);  // chaminé
+    box(4.6, 3.2, 3.6, C.wall, 12.4, 0.12, -12.4, cogen); box(4.9, 0.3, 3.9, C.roofY, 12.4, 3.32, -12.4, cogen);      // casa de força
+    const tg = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 3, 20), mat(C.bandG));                          // turbogerador
+    tg.rotation.z = Math.PI / 2; tg.position.set(12.4, 4.4, -12.4); tg.castShadow = true; cogen.add(tg);
+    box(1.6, 1.4, 1.6, C.dark, 15.6, 0.12, -12.4, cogen); }                                                           // subestação
+  const bagPile = new THREE.Mesh(new THREE.ConeGeometry(1.6, 1, 24), mat(0xc4a15a, { roughness: 1 }));
+  bagPile.position.set(5.4, 0.62, -12.4); bagPile.castShadow = true; cogen.add(bagPile);
+  let bagH = 1.5;
+  const enTag = staticTag('Casa de força', 'var(--yellow)', [11, 7.2, -12.4]);
+  // linha de transmissão: torres e dois cabos com flecha; pulsos amarelos andam conforme a energia exportada
+  const towerX = [15.6, 22, 28.4, 34.8], wireZ = [-13.5, -11.3], SPANS = towerX.length - 1;
+  towerX.slice(1).forEach((x) => { cyl(0.32, 7, C.steel, x, 0, -12.4, scene, 4, 0.1); box(0.14, 0.14, 2.8, C.steel, x, 6.6, -12.4, scene, false); });
+  const wireY = (i) => (i === 0 ? 1.6 : 6.6);
+  function wirePt(z, u) {
+    const i = Math.min(Math.floor(u), SPANS - 1), f = u - i;
+    return [towerX[i] + (towerX[i + 1] - towerX[i]) * f, wireY(i) + (wireY(i + 1) - wireY(i)) * f - 0.7 * Math.sin(Math.PI * f), z];
+  }
+  const wireMat = new THREE.LineBasicMaterial({ color: 0x8aa0aa });
+  wireZ.forEach((z) => { const pts = []; for (let k = 0; k <= SPANS * 16; k++) pts.push(new THREE.Vector3(...wirePt(z, k / 16)));
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), wireMat)); });
+  const pulseMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 }), pulseGeo = new THREE.SphereGeometry(0.2, 8, 6);
+  const pulses = [];
+  wireZ.forEach((z) => { for (let k = 0; k < 12; k++) { const m = new THREE.Mesh(pulseGeo, pulseMat); m.position.set(...wirePt(z, k / 12 * SPANS)); scene.add(m); pulses.push({ m, z, k, off: k / 12 * SPANS }); } });
+  let pulsePh = 0;
 
   // nível do estoque (luva verde) e marcador do estoque projetado pela previsão (anel laranja) nos dois tanques
   const TANK_H = 4.2;
@@ -706,7 +749,7 @@
 
   // vapor
   const steams = [];
-  [[-10.5, B + 8.2, -6.8], [12.6, B + 7.4, 8.0], [8.2, B + 8.6, 8.0]].forEach(([x, y, z]) => {
+  [[-10.5, B + 8.2, -6.8], [12.6, B + 7.4, 8.0], [8.2, B + 8.6, 8.0], [8.4, 11.3, -14.4]].forEach(([x, y, z]) => {
     for (let i = 0; i < 8; i++) {
       const m = new THREE.Mesh(new THREE.SphereGeometry(0.7, 10, 8), new THREE.MeshBasicMaterial({ color: 0xdce6ea, transparent: true, opacity: 0, depthWrite: false }));
       scene.add(m); steams.push({ m, x, y, z, ph: i / 8, i });
@@ -816,9 +859,11 @@
       s.tag.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) translate(-50%,calc(-100% - 14px))`;
       s.tag.style.visibility = vec.z > 1 ? 'hidden' : 'visible';
     });
-    vec.set(-16, 4.2, -12).project(camera);
-    armTag.style.transform = `translate(${((vec.x * 0.5 + 0.5) * W).toFixed(1)}px,${((-vec.y * 0.5 + 0.5) * H).toFixed(1)}px) translate(-50%,calc(-100% - 14px))`;
-    armTag.style.visibility = vec.z > 1 ? 'hidden' : 'visible';
+    staticTags.forEach(({ el, p }) => {
+      vec.set(p[0], p[1], p[2]).project(camera);
+      el.style.transform = `translate(${((vec.x * 0.5 + 0.5) * W).toFixed(1)}px,${((-vec.y * 0.5 + 0.5) * H).toFixed(1)}px) translate(-50%,calc(-100% - 14px))`;
+      el.style.visibility = vec.z > 1 ? 'hidden' : 'visible';
+    });
   }
 
   let sel = 'fermentacao';
@@ -1041,6 +1086,13 @@
       // pilha do armazém acompanha a produção de açúcar (t/dia)
       const pg = 0.25 + 2.1 * clamp((bal ? bal.acucar_t : 0) / 2500, 0, 1);
       pileH += (pg - pileH) * Math.min(1, dt * 2); sugarPile.scale.y = pileH; sugarPile.position.y = 0.12 + pileH / 2;
+      // pilha de bagaço segue o estoque do pátio; pulsos na linha: quantidade e velocidade pela energia exportada
+      const eg = energiaNow(), rx = clamp(eg.exportada_mw / 90, 0, 1.3);
+      const bg = 0.3 + 2.9 * clamp((eg.estoque_bagaco_t - 5000) / 20000, 0, 1);
+      bagH += (bg - bagH) * Math.min(1, dt * 1.5); bagPile.scale.set(0.7 + bagH * 0.25, bagH, 0.7 + bagH * 0.25); bagPile.position.y = 0.12 + bagH / 2;
+      pulsePh += dt * (0.25 + 0.9 * rx);
+      const nOn = Math.round(12 * clamp(rx, 0, 1));
+      pulses.forEach((p) => { const on = p.k < nOn; p.m.visible = on; if (on) { const w = wirePt(p.z, (p.off + pulsePh) % SPANS); p.m.position.set(w[0], w[1], w[2]); } });
       // fumaça mais densa com a moagem acima de 90% da capacidade
       const cm = apiOk && cena.moagem && cena.moagem.producao != null ? cena.moagem.producao / cena.moagem.capacidade : LOAD.moagem();
       smokeD += ((cm > 0.9 ? 1 : 0.5) - smokeD) * Math.min(1, dt * 1.5);
@@ -1079,6 +1131,9 @@
     $('#mixA').textContent = `${fmt(mixA, 0)}%`; $('#mixE').textContent = `${fmt(100 - mixA, 0)}%`;
     $('#mixOut').textContent = `Açúcar ${fmt(bal.acucar_t, 0)} t/dia · Etanol ${fmt(bal.etanol_m3, 0)} m³/dia · Bagaço ${fmt(bal.bagaco_t, 0)} t · Vinhaça ${fmt(bal.vinhaca_m3, 0)} m³`;
     armTag.querySelector('.tv').textContent = `${fmt(bal.acucar_t, 0)} t/dia`;
+    const e = energiaNow();
+    $('#enOut').innerHTML = `Gerada ${fmt(e.gerada_mw, 1)} MW · Consumida ${fmt(e.consumida_mw, 1)} MW · Exportada <b>${fmt(e.exportada_mw, 1)} MW</b> (${fmt(e.exportada_kwh_t, 0)} kWh/t)`;
+    enTag.querySelector('.tv').textContent = `${fmt(e.exportada_mw, 1)} MW exportados`;
   }
   // arrastar mostra o efeito na hora (cálculo local); ao soltar grava em PUT /api/mix/acucar
   $('#mixRange').addEventListener('input', (e) => { mixA = Number(e.target.value); mixHold = Date.now() + 20000; bal = balLocal(); renderMix(); });
@@ -1138,6 +1193,7 @@
     put(byId.destilacao, 4, I.rendimento); put(byId.destilacao, 5, I.perdas);
     cena = cn.etapas; cenaAlertas = cn.alertas; alarmes = al;
     if (cn.balanco && Date.now() > mixHold) { bal = cn.balanco; mixA = bal.mix_acucar; }
+    if (cn.energia) energia = cn.energia;
   }
   function setSource(ok, via) {
     apiOk = ok;
