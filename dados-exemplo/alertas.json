@@ -1,10 +1,31 @@
 [
  {
+  "id": "a7",
+  "hora": "18:02",
+  "nivel": "OK",
+  "area": "Moagem",
+  "mensagem": "Chuva terminou: moagem voltando ao normal"
+ },
+ {
+  "id": "a8",
+  "hora": "17:51",
+  "nivel": "Info",
+  "area": "Moagem",
+  "mensagem": "Chuva na lavoura: moagem e fila de caminhões reduzidas"
+ },
+ {
   "id": "a1",
   "hora": "17:42",
   "nivel": "Atenção",
   "area": "Fermentação",
   "mensagem": "Temperatura da dorna 3 acima do limite (33,1 °C)"
+ },
+ {
+  "id": "a9",
+  "hora": "17:38",
+  "nivel": "Atenção",
+  "area": "Fermentação",
+  "mensagem": "Temperatura da dorna 3 deve passar de 33,0 em ~2 min (+0,30 por min)"
  },
  {
   "id": "a2",
