@@ -112,8 +112,16 @@
   .kpi.loss b { color: #fca5a5; font-size: 19px; }
   .gest { border-top: 1px solid var(--line); padding-top: 10px; }
   .gest summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
-  .gest svg { width: 100%; height: auto; display: block; margin-top: 6px; }
-  .gest svg text { fill: var(--fg); font-size: 11.5px; paint-order: stroke; stroke: rgba(11, 15, 18, .85); stroke-width: 2.5px; }
+  .gest svg { width: 100%; height: auto; display: block; margin-top: 6px; cursor: zoom-in; }
+  .gest svg text { fill: var(--fg); font-size: 15px; paint-order: stroke; stroke: rgba(11, 15, 18, .85); stroke-width: 3px; }
+  .gest svg .v { fill: #cbd5da; }
+  .skmodal { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 24px; background: rgba(5, 8, 10, .78); }
+  .skmodal[hidden] { display: none; }
+  .skmodal .box { position: relative; width: min(920px, 100%); max-height: 100%; overflow: auto; padding: 18px 20px 14px; border-radius: 16px; background: var(--panel-solid); border: 1px solid var(--line); }
+  .skmodal svg { width: 100%; height: auto; max-height: 78vh; display: block; }
+  .skmodal text { fill: var(--fg); font-size: 15px; paint-order: stroke; stroke: rgba(11, 15, 18, .85); stroke-width: 3px; }
+  .skmodal .v { fill: #cbd5da; }
+  .skmodal .x { position: absolute; top: 10px; right: 12px; border: 1px solid var(--line); background: rgba(255, 255, 255, .06); border-radius: 999px; padding: 3px 12px; font-size: 12px; }
   .gest p { margin: 6px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
 
   .tools { grid-area: tools; align-self: center; display: flex; flex-direction: column; gap: 6px; padding: 6px; border-radius: 14px; width: 44px; }
@@ -298,6 +306,7 @@
   <div class="caption card" id="cap" hidden><div class="capTxt" id="capTxt"></div><div class="capRow"><div class="dots" id="capDots"></div><button type="button" id="capStop">Parar tour</button></div></div>
   <form class="ask card" id="ask" autocomplete="off"><div class="row"><input id="askIn" type="text" maxlength="200" placeholder="Pergunte à usina: o que está em atenção?" aria-label="Pergunte à usina"><button type="submit">Perguntar</button></div><div class="bubble" id="bubble" hidden></div></form>
   <aside class="tcard card" id="tcard" hidden></aside>
+  <div class="skmodal" id="skModal" hidden role="dialog" aria-modal="true" aria-label="Balanço de massa ampliado"><div class="box"><button class="x" type="button" id="skClose">Fechar (Esc)</button><svg id="skBig" viewBox="0 0 380 400"></svg></div></div>
   <section class="alarms card" id="alarms" hidden aria-label="Gestão de alarmes"></section>
   <div id="tags"></div>
   <div id="nogl" hidden>Seu navegador não conseguiu abrir a vista 3D (WebGL indisponível). Tente outro navegador ou ative a aceleração de hardware.</div>
@@ -337,7 +346,7 @@
         <div class="spark-top"><span id="spLabel"></span><span id="spLimit"></span></div>
         <div class="spark" id="spark"><svg viewBox="0 0 200 64" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22c55e" stop-opacity=".35"/><stop offset="1" stop-color="#22c55e" stop-opacity="0"/></linearGradient></defs><line id="spLim" x1="0" x2="200" stroke="#fb923c" stroke-width="1" stroke-dasharray="4 4" vector-effect="non-scaling-stroke" opacity="0"/><path id="spArea" fill="url(#sg)"/><polyline id="spLine" fill="none" stroke="#22c55e" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg><div class="end" id="spEnd"></div></div>
       </div>
-      <details class="gest" id="gest" hidden open><summary>Balanço de massa do dia</summary><svg id="sk" viewBox="0 0 372 232" role="img" aria-label="Diagrama Sankey do balanço de massa"></svg><p id="skNote"></p></details>
+      <details class="gest" id="gest" hidden open><summary>Balanço de massa do dia</summary><svg id="sk" viewBox="0 0 380 400" role="button" tabindex="0" aria-label="Diagrama Sankey do balanço de massa; clique para ampliar"></svg><p id="skNote"></p></details>
       <div class="nav"><button type="button" id="prev">← Etapa anterior</button><button type="button" id="next">Próxima etapa →</button></div>
       <p class="credit"><span id="srcNote">Dados fictícios de demonstração, gerados no navegador.</span></p>
     </aside>
@@ -1197,6 +1206,34 @@
   // Sankey: colunas cana | caldo e bagaço | produtos. A altura de cada nó é a massa (t/dia), mesmo quando o rótulo está em m³ ou MW.
   const SK_COL = { cana: 0, caldo: 1, bagaco: 1, acucar: 2, etanol: 2, vinhaca: 2, energia: 2, estoque: 2 };
   const SK_COR = { caldo: '#4ade80', bagaco: '#d9b63a', acucar: '#e5e7eb', etanol: '#60a5fa', vinhaca: '#a16207', energia: '#facc15', estoque: '#8b7a3a' };
+  // Monta o desenho do Sankey (viewBox 360 x 360). Rótulos da direita em duas linhas, empurrados para não se sobreporem.
+  function sankeySvg() {
+    const X = [84, 150, 250], W = 9, TOP = 44, H = 290, GAP = [0, 50, 10], LH = 17, PASSO = 2 * LH + 6;
+    const nos = Object.fromEntries(sk.nos.map((n) => [n.id, Object.assign({ out: 0, in: 0, m: n.valor }, n)]));
+    sk.elos.forEach((e) => { nos[e.para].m = e.t; });
+    const k = H / nos.cana.valor;
+    [0, 1, 2].forEach((c) => { let y = TOP; sk.nos.filter((n) => SK_COL[n.id] === c).forEach((n) => { const o = nos[n.id]; o.x = X[c]; o.y = y; o.h = Math.max(o.m * k, 5); y += o.h + GAP[c]; }); });
+    const elos = sk.elos.map((e) => {
+      const a = nos[e.de], b = nos[e.para], h = Math.max(e.t * k, 1), y0 = a.y + a.out + h / 2, y1 = b.y + b.in + h / 2;
+      a.out += h; b.in += h; const x0 = a.x + W, mx = (x0 + b.x) / 2;
+      return `<path d="M${x0},${y0} C${mx},${y0} ${mx},${y1} ${b.x},${y1}" fill="none" stroke="${SK_COR[e.para]}" stroke-opacity=".4" stroke-width="${h}"/>`;
+    }).join('');
+    const barras = Object.values(nos).map((o) => `<rect x="${o.x}" y="${o.y}" width="${W}" height="${o.h}" rx="2" fill="${SK_COR[o.id] || '#22c55e'}"/>`).join('');
+    const valor = (o) => `${fmt(o.valor, o.unidade === 't' || o.unidade === 'm³' ? 0 : 1)} ${o.unidade.slice(0, 2) === 'MW' ? 'MW' : o.unidade}`;
+    const lin2 = (x, y, o, ancora) => `<text x="${x}" y="${y}" text-anchor="${ancora}">${esc(o.id === 'estoque' ? 'Estoque' : o.nome)}<tspan x="${x}" dy="${LH}" class="v">${esc(valor(o))}</tspan></text>`;
+    // direita: cada rótulo no centro do seu nó, mas pelo menos PASSO abaixo do anterior; se passar do fim, sobe tudo
+    const dir = Object.values(nos).filter((o) => SK_COL[o.id] === 2);
+    let topo = -Infinity; dir.forEach((o) => { o.ly = Math.max(o.y + o.h / 2 - LH, topo + PASSO); topo = o.ly; });
+    const fim = TOP + H + 50, sobra = Math.max(0, dir[dir.length - 1].ly + 2 * LH - fim); dir.forEach((o) => { o.ly -= sobra; });
+    const txt = Object.values(nos).map((o) => {
+      const c = SK_COL[o.id];
+      if (c === 0) return lin2(o.x - 6, o.y + o.h / 2 - 2, o, 'end');
+      if (c === 1) return lin2(o.x - 2, o.y - LH - 6, o, 'start');
+      const cy = o.y + o.h / 2, guia = Math.abs(o.ly + LH - 4 - cy) > 3 ? `<line x1="${o.x + W}" y1="${cy}" x2="${o.x + W + 7}" y2="${o.ly + LH - 4}" stroke="#7b8a92" stroke-width="1"/>` : '';
+      return guia + lin2(o.x + W + 9, o.ly + 10, o, 'start');
+    }).join('');
+    return elos + barras + txt;
+  }
   function renderGestao() {
     const rain = apiOk && !histMode && chuva && chuva.ativa;
     $('#rain').classList.toggle('on', !!rain);
@@ -1204,25 +1241,17 @@
     const box = $('#gest');
     box.hidden = !(apiOk && !histMode && sk && fin);
     if (box.hidden) return;
-    const X = [84, 150, 214], W = 8, TOP = 14, H = 190, GAP = [0, 16, 9];
-    const nos = Object.fromEntries(sk.nos.map((n) => [n.id, Object.assign({ out: 0, in: 0, m: n.valor }, n)]));
-    sk.elos.forEach((e) => { nos[e.para].m = e.t; });
-    const k = H / nos.cana.valor;
-    [0, 1, 2].forEach((c) => { let y = TOP; sk.nos.filter((n) => SK_COL[n.id] === c).forEach((n) => { const o = nos[n.id]; o.x = X[c]; o.y = y; o.h = Math.max(o.m * k, 4); y += o.h + GAP[c]; }); });
-    const elos = sk.elos.map((e) => {
-      const a = nos[e.de], b = nos[e.para], h = Math.max(e.t * k, 1), y0 = a.y + a.out + h / 2, y1 = b.y + b.in + h / 2;
-      a.out += h; b.in += h; const x0 = a.x + W, mx = (x0 + b.x) / 2;
-      return `<path d="M${x0},${y0} C${mx},${y0} ${mx},${y1} ${b.x},${y1}" fill="none" stroke="${SK_COR[e.para]}" stroke-opacity=".4" stroke-width="${h}"/>`;
-    }).join('');
-    const barras = Object.values(nos).map((o) => `<rect x="${o.x}" y="${o.y}" width="${W}" height="${o.h}" rx="2" fill="${SK_COR[o.id] || '#22c55e'}"/>`).join('');
-    const txt = Object.values(nos).map((o) => {
-      const rot = esc(`${o.nome} ${fmt(o.valor, o.unidade === 't' || o.unidade === 'm³' ? 0 : 1)} ${o.unidade.slice(0, 2) === 'MW' ? 'MW' : o.unidade}`), c = SK_COL[o.id];
-      return c === 0 ? `<text x="${o.x - 5}" y="${o.y + o.h / 2 + 3}" text-anchor="end">${rot}</text>`
-        : c === 1 ? `<text x="${o.x - 2}" y="${o.y - 4}">${rot}</text>` : `<text x="${o.x + W + 5}" y="${o.y + o.h / 2 + 3}">${rot}</text>`;
-    }).join('');
-    $('#sk').innerHTML = elos + barras + txt;
+    const svg = sankeySvg();
+    $('#sk').innerHTML = svg; if (!$('#skModal').hidden) $('#skBig').innerHTML = svg;
     $('#skNote').textContent = `Altura = massa em t/dia (etanol a 0,8 t/m³); vinhaça e água = o que sobra do caldo. Receita estimada ${money(fin.receita_rs_dia.total)}/dia · perdas ${money(fin.perdas_rs_dia)}/dia.`;
   }
+  function skAbrir() { if (!sk) return; $('#skBig').innerHTML = sankeySvg(); $('#skModal').hidden = false; $('#skClose').focus(); }
+  function skFechar() { $('#skModal').hidden = true; $('#sk').focus(); }
+  $('#sk').addEventListener('click', skAbrir);
+  $('#sk').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); skAbrir(); } });
+  $('#skClose').addEventListener('click', skFechar);
+  $('#skModal').addEventListener('click', (e) => { if (e.target.id === 'skModal') skFechar(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#skModal').hidden) skFechar(); });
   function setAlarms(open) { alarmsOpen = open; $('#alarms').hidden = !open; $('#alarmBtn').setAttribute('aria-expanded', String(open)); renderAlarms(); }
   function ackText(a) { return a.reconhecido ? `Reconhecido em ${dur(a.segundos_ate_reconhecer)}` : 'Não reconhecido'; }
   function renderAlarms() {
