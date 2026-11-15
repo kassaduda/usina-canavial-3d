@@ -106,6 +106,15 @@
     font-size: 12.5px; white-space: nowrap;
   }
   .alert.on { display: inline-flex; }
+  .rain { display: none; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(125, 211, 252, .55); background: rgba(12, 32, 48, .88); font-size: 12.5px; white-space: nowrap; }
+  .rain.on { display: inline-flex; }
+  .kpi.loss { border: 1px solid rgba(248, 113, 113, .55); background: rgba(52, 18, 18, .88); }
+  .kpi.loss b { color: #fca5a5; font-size: 19px; }
+  .gest { border-top: 1px solid var(--line); padding-top: 10px; }
+  .gest summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
+  .gest svg { width: 100%; height: auto; display: block; margin-top: 6px; }
+  .gest svg text { fill: var(--fg); font-size: 11.5px; paint-order: stroke; stroke: rgba(11, 15, 18, .85); stroke-width: 2.5px; }
+  .gest p { margin: 6px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
 
   .tools { grid-area: tools; align-self: center; display: flex; flex-direction: column; gap: 6px; padding: 6px; border-radius: 14px; width: 44px; }
   .tools button {
@@ -180,7 +189,7 @@
   @media (max-width: 520px) {
     .brand small { display: none; }
     .tag .tn { display: none; }
-    .alert.on { order: 4; }
+    .alert.on, .rain.on { order: 4; }
   }
   @media (prefers-reduced-motion: reduce) {
     .warn > .dot, .dot.warn { animation: none; }
@@ -300,6 +309,7 @@
         <div><b>Usina Canavial</b><small>Safra 2026/27 · Ibiporã - PR</small></div>
       </div>
       <div class="kpis" id="kpis"></div>
+      <div class="rain" id="rain" role="status"><span aria-hidden="true">🌧</span><span id="rainTxt"></span></div>
       <button class="alert" id="alert" type="button"><span class="dot warn"></span><span id="alertTxt"></span></button>
       <div class="live card"><span class="dot"></span><span id="srcTxt">Exemplo</span> · <span id="clock">--:--:--</span></div>
     </header>
@@ -327,6 +337,7 @@
         <div class="spark-top"><span id="spLabel"></span><span id="spLimit"></span></div>
         <div class="spark" id="spark"><svg viewBox="0 0 200 64" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22c55e" stop-opacity=".35"/><stop offset="1" stop-color="#22c55e" stop-opacity="0"/></linearGradient></defs><line id="spLim" x1="0" x2="200" stroke="#fb923c" stroke-width="1" stroke-dasharray="4 4" vector-effect="non-scaling-stroke" opacity="0"/><path id="spArea" fill="url(#sg)"/><polyline id="spLine" fill="none" stroke="#22c55e" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg><div class="end" id="spEnd"></div></div>
       </div>
+      <details class="gest" id="gest" hidden open><summary>Balanço de massa do dia</summary><svg id="sk" viewBox="0 0 372 232" role="img" aria-label="Diagrama Sankey do balanço de massa"></svg><p id="skNote"></p></details>
       <div class="nav"><button type="button" id="prev">← Etapa anterior</button><button type="button" id="next">Próxima etapa →</button></div>
       <p class="credit"><span id="srcNote">Dados fictícios de demonstração, gerados no navegador.</span></p>
     </aside>
@@ -412,7 +423,7 @@
   let apiOk = false, cena = {}, cenaAlertas = [], dornaTemps = null, dornaEst = null, histMode = false, forecast = [], selTruck = null;
   const TANK_CAP = 22000; // m³, capacidade do tanque de etanol
   // Mix açúcar/etanol (% do ATR para açúcar) e balanço de massa; com a API vem de /api/cena, sem ela é calculado aqui
-  let mixA = 50, bal = null, mixHold = 0, energia = null;
+  let mixA = 50, bal = null, mixHold = 0, energia = null, fin = null, sk = null, chuva = null, rainK = 0, rainShown = -1;
   // Cogeração sem API: mesma conta de banco.cogeracao, com o estoque de bagaço oscilando
   function energiaLocal() {
     const m = byId.moagem.ind[0].v, q = m * 0.27 * (1 + 0.1 * Math.sin(T / 60)), vapor = q / 24 * 2.1;
@@ -463,6 +474,16 @@
   scene.fog = new THREE.Fog(BG, 105, 185);
   const camera = new THREE.OrthographicCamera(-10, 10, 10, -10, -300, 500);
 
+  // Chuva: gotas (segmentos) caindo sobre a cena enquanto a API avisa chuva; rainK (0..1) suaviza a entrada e a saída.
+  const RAIN_N = 900, drops = Array.from({ length: RAIN_N }, () => ({ x: (Math.random() - 0.5) * 70, y: Math.random() * 40, z: (Math.random() - 0.5) * 70, v: 28 + Math.random() * 12 }));
+  const rainGeo = new THREE.BufferGeometry(), rainPos = new Float32Array(RAIN_N * 6);
+  rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+  const rainMat = new THREE.LineBasicMaterial({ color: 0xb7d3e8, transparent: true, opacity: 0, depthWrite: false });
+  const rainLines = new THREE.LineSegments(rainGeo, rainMat); rainLines.frustumCulled = false; rainLines.visible = false; scene.add(rainLines);
+  function stepRain(dt) {
+    drops.forEach((d, i) => { d.y -= d.v * dt; if (d.y < 0) d.y += 40; rainPos.set([d.x, d.y, d.z, d.x + 0.12, d.y + 0.9, d.z], i * 6); });
+    rainGeo.attributes.position.needsUpdate = true;
+  }
   const hemi = new THREE.HemisphereLight(0xcfe4f0, 0x1a242a, 0.85);
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff0dc, 1.05);
@@ -722,11 +743,11 @@
   const _a = new THREE.Color(), _b = new THREE.Color();
   const mix = (target, h1, h2, k) => target.copy(_a.setHex(h1)).lerp(_b.setHex(h2), k);
   function applyNight(k) {
-    hemi.intensity = 0.85 - 0.6 * k; mix(hemi.color, 0xcfe4f0, 0x4a6aa8, k);
-    sun.intensity = 1.05 - 0.85 * k; mix(sun.color, 0xfff0dc, 0x6f8fe0, k);
+    hemi.intensity = (0.85 - 0.6 * k) * (1 - 0.4 * rainK); mix(hemi.color, 0xcfe4f0, 0x4a6aa8, k);
+    sun.intensity = (1.05 - 0.85 * k) * (1 - 0.55 * rainK); mix(sun.color, 0xfff0dc, 0x6f8fe0, k);
     fill.intensity = 0.32 - 0.2 * k;
-    mix(scene.background, 0x0b0f12, 0x04070a, k); scene.fog.color.copy(scene.background);
-    mix(ground.material.color, 0x10171b, 0x090e12, k);
+    mix(scene.background, 0x0b0f12, 0x04070a, k); scene.background.multiplyScalar(1 - 0.3 * rainK); scene.fog.color.copy(scene.background);
+    mix(ground.material.color, 0x10171b, 0x090e12, k); ground.material.color.multiplyScalar(1 - 0.4 * rainK);
     winMat.emissiveIntensity = 0.95 * k; mix(lampMat.color, 0x6b7a82, 0xffd99a, k); glowMat.opacity = 0.13 * k;
   }
 
@@ -933,7 +954,9 @@
       ['Moagem hoje', fmt(m[0].v, 0), 't'], ['ATR médio', fmt(m[2].v, 1), 'kg/t'],
       ['Etanol hoje', fmt(d[0].v, 0), 'm³'], ['Rendimento industrial', fmt(d[4].v, 1), 'L/t'],
       ['Efic. fermentação', fmt(byId.fermentacao.ind[4].v, 1), '%'], ['Pátio (simulado)', String(trucks.length), ''] ]
-      .map(([k, v, u]) => `<div class="kpi card"><span>${k}${histMode ? ' · histórico' : ''}</span><b>${v}<i>${u}</i></b></div>`).join('');
+      .map(([k, v, u]) => `<div class="kpi card"><span>${k}${histMode ? ' · histórico' : ''}</span><b>${v}<i>${u}</i></b></div>`).join('')
+      + (apiOk && fin ? `<div class="kpi card loss" title="${esc(finDica())}"><span>Perdas hoje</span><b>${money(fin.perdas_rs_dia)}<i>/dia</i></b></div>` : '');
+    renderGestao();
     const al = apiOk ? cenaAlertas : (statusOf(byId.fermentacao) === 'warn' ? [{ mensagem: `Dorna 3 a ${fmt(byId.fermentacao.ind[0].v, 1)} °C, acima de 33 °C` }] : []);
     $('#alert').classList.toggle('on', al.length > 0);
     if (al.length) $('#alertTxt').textContent = al[0].mensagem + (al.length > 1 ? ` (+${al.length - 1})` : '');
@@ -1109,6 +1132,11 @@
       steams.forEach((s) => { const u = (s.ph + now * 0.00018) % 1, w = clamp(smokeD * 8 - s.i, 0, 1); s.m.position.set(s.x + u * 1.4, s.y + u * 5, s.z - u * 0.6); s.m.scale.setScalar((0.5 + u * 1.6) * (0.8 + 0.4 * smokeD)); s.m.material.opacity = (0.18 + 0.2 * smokeD) * w * Math.sin(u * Math.PI); });
     } else { pipes.forEach((P) => P.dots.forEach((o) => { const p = at(P, o.off % P.L); o.m.position.set(p.x, 0.78, p.z); }));
       pileH = 0.25 + 2.1 * clamp((bal ? bal.acucar_t : 0) / 2500, 0, 1); sugarPile.scale.y = pileH; sugarPile.position.y = 0.12 + pileH / 2; }
+    const rainT = apiOk && !histMode && chuva && chuva.ativa ? 1 : 0;
+    rainK = still ? rainT : rainK + (rainT - rainK) * Math.min(1, dt * 0.8);
+    if (Math.abs(rainK - rainShown) > 0.003 || (rainK === rainT && rainShown !== rainK)) { rainShown = rainK; applyNight(nightK); }
+    rainLines.visible = rainK > 0.01; rainMat.opacity = 0.55 * rainK;
+    if (rainLines.visible && !still) stepRain(dt);
     const warn = statusOf(byId.fermentacao) === 'warn';
     const dT = dornasTemp(), pulso = 0.5 + 0.5 * Math.sin(now / (warn ? 260 : 420));
     dornaMats.forEach((m, i) => {
@@ -1160,6 +1188,41 @@
       .catch(() => { mixHold = 0; });
   });
 
+  const money = (v) => v >= 1e6 ? `R$ ${fmt(v / 1e6, 2)} mi` : `R$ ${fmt(v / 1e3, 0)} mil`;
+  function finDica() {
+    const p = fin.precos, r = fin.receita_rs_dia;
+    return `Perdas totais: ${fmt(fin.atr_perdido_t, 0)} t de ATR a R$ ${fmt(fin.valor_atr_r_t, 0)}/t. Acima do plano (${fmt(fin.perdas_plano_pct, 1)}%): ${money(fin.perdas_acima_plano_rs_dia)}/dia. `
+      + `Receita estimada: ${money(r.total)}/dia (açúcar ${money(r.acucar)}, etanol ${money(r.etanol)}, energia ${money(r.energia)}). Preços: açúcar R$ ${fmt(p.acucar_r_t, 0)}/t, etanol R$ ${fmt(p.etanol_r_m3, 0)}/m³, energia R$ ${fmt(p.energia_r_mwh, 0)}/MWh.`;
+  }
+  // Sankey: colunas cana | caldo e bagaço | produtos. A altura de cada nó é a massa (t/dia), mesmo quando o rótulo está em m³ ou MW.
+  const SK_COL = { cana: 0, caldo: 1, bagaco: 1, acucar: 2, etanol: 2, vinhaca: 2, energia: 2, estoque: 2 };
+  const SK_COR = { caldo: '#4ade80', bagaco: '#d9b63a', acucar: '#e5e7eb', etanol: '#60a5fa', vinhaca: '#a16207', energia: '#facc15', estoque: '#8b7a3a' };
+  function renderGestao() {
+    const rain = apiOk && !histMode && chuva && chuva.ativa;
+    $('#rain').classList.toggle('on', !!rain);
+    if (rain) $('#rainTxt').textContent = `Chuva: moagem −${Math.round((1 - chuva.fator_moagem) * 100)}% e fila reduzida${chuva.restante_s > 60 ? ` · ~${Math.round(chuva.restante_s / 60)} min` : ' · terminando'}`;
+    const box = $('#gest');
+    box.hidden = !(apiOk && !histMode && sk && fin);
+    if (box.hidden) return;
+    const X = [84, 150, 214], W = 8, TOP = 14, H = 190, GAP = [0, 16, 9];
+    const nos = Object.fromEntries(sk.nos.map((n) => [n.id, Object.assign({ out: 0, in: 0, m: n.valor }, n)]));
+    sk.elos.forEach((e) => { nos[e.para].m = e.t; });
+    const k = H / nos.cana.valor;
+    [0, 1, 2].forEach((c) => { let y = TOP; sk.nos.filter((n) => SK_COL[n.id] === c).forEach((n) => { const o = nos[n.id]; o.x = X[c]; o.y = y; o.h = Math.max(o.m * k, 4); y += o.h + GAP[c]; }); });
+    const elos = sk.elos.map((e) => {
+      const a = nos[e.de], b = nos[e.para], h = Math.max(e.t * k, 1), y0 = a.y + a.out + h / 2, y1 = b.y + b.in + h / 2;
+      a.out += h; b.in += h; const x0 = a.x + W, mx = (x0 + b.x) / 2;
+      return `<path d="M${x0},${y0} C${mx},${y0} ${mx},${y1} ${b.x},${y1}" fill="none" stroke="${SK_COR[e.para]}" stroke-opacity=".4" stroke-width="${h}"/>`;
+    }).join('');
+    const barras = Object.values(nos).map((o) => `<rect x="${o.x}" y="${o.y}" width="${W}" height="${o.h}" rx="2" fill="${SK_COR[o.id] || '#22c55e'}"/>`).join('');
+    const txt = Object.values(nos).map((o) => {
+      const rot = esc(`${o.nome} ${fmt(o.valor, o.unidade === 't' || o.unidade === 'm³' ? 0 : 1)} ${o.unidade.slice(0, 2) === 'MW' ? 'MW' : o.unidade}`), c = SK_COL[o.id];
+      return c === 0 ? `<text x="${o.x - 5}" y="${o.y + o.h / 2 + 3}" text-anchor="end">${rot}</text>`
+        : c === 1 ? `<text x="${o.x - 2}" y="${o.y - 4}">${rot}</text>` : `<text x="${o.x + W + 5}" y="${o.y + o.h / 2 + 3}">${rot}</text>`;
+    }).join('');
+    $('#sk').innerHTML = elos + barras + txt;
+    $('#skNote').textContent = `Altura = massa em t/dia (etanol a 0,8 t/m³); vinhaça e água = o que sobra do caldo. Receita estimada ${money(fin.receita_rs_dia.total)}/dia · perdas ${money(fin.perdas_rs_dia)}/dia.`;
+  }
   function setAlarms(open) { alarmsOpen = open; $('#alarms').hidden = !open; $('#alarmBtn').setAttribute('aria-expanded', String(open)); renderAlarms(); }
   function ackText(a) { return a.reconhecido ? `Reconhecido em ${dur(a.segundos_ate_reconhecer)}` : 'Não reconhecido'; }
   function renderAlarms() {
@@ -1208,6 +1271,7 @@
     const I = Object.fromEntries(ix.map((i) => [i.id, i.valor]));
     put(byId.moagem, 3, I.ef_extracao); put(byId.fermentacao, 4, I.ef_fermentacao);
     put(byId.destilacao, 4, I.rendimento); put(byId.destilacao, 5, I.perdas);
+    fin = cn.financeiro || null; sk = cn.sankey || null; chuva = cn.chuva || null;
     cena = cn.etapas; cenaAlertas = cn.alertas; alarmes = al; dornaTemps = cn.dornas; dornaEst = cn.estado_dornas;
     if (cn.balanco && Date.now() > mixHold) { bal = cn.balanco; mixA = bal.mix_acucar; }
     if (cn.energia) energia = cn.energia;
@@ -1270,6 +1334,7 @@
       const serie = ((d.series[s.id]) || []).filter((p) => new Date(p.ts).getTime() <= t(snap) + 59000).slice(-30).map((p) => p.v);
       if (serie.length >= 2) s.hist = serie;
     });
+    fin = null; sk = null; chuva = null;
     cena = snap.cena.etapas; cenaAlertas = snap.cena.alertas; dornaTemps = snap.cena.dornas; dornaEst = null;
     histMode = true;
     const hh = new Date(snap.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });

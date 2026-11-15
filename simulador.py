@@ -17,14 +17,16 @@ from datetime import datetime, timedelta
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from banco import (ESTOQUE_BAGACO_MAX, INFO_SORTEIO, QUEIMA_PADRAO, REGRAS, HistoricoSafra, LeituraSensor, Ocorrencia,
-                   ProducaoDiaria, balanco, cogeracao, em_alarme, engine, fmt_br, ler_mix, mix_produtos, semear,
+from banco import (ESTOQUE_BAGACO_MAX, FATOR_CHUVA, INFO_SORTEIO, QUEIMA_PADRAO, REGRAS, HistoricoSafra, LeituraSensor,
+                   Ocorrencia, Parametro, ProducaoDiaria, balanco, cogeracao, em_alarme, engine, fmt_br, ler_mix, mix_produtos, semear,
                    sensores, tendencias)
 
 REVERSAO = 0.1           # quanto o valor volta ao alvo a cada ciclo
 CICLOS_POR_SAFRA = 6     # um registro de historico_safra por minuto
 RETENCAO = timedelta(hours=24)
 CHANCE_INFO = 0.003      # chance de um aviso "Info" por ciclo
+CHANCE_CHUVA = 0.0012    # por segundo (em média uma chuva a cada ~14 min)
+DURACAO_CHUVA = (150, 240)  # segundos
 ACELERA_PATIO = 1440     # o estoque de bagaço evolui 1440x mais rápido (1 min = 1 dia), para a pilha variar na demo
 
 
@@ -37,6 +39,7 @@ class Simulador:
         self.em_tendencia: set[str] = set()
         self.ciclo = 0
         self.mix = 50.0
+        self.chuva_fim = 0.0     # instante (epoch) em que a chuva acaba; 0 = sem chuva
         self.ultimo = time.monotonic()
         with Session(engine) as s:
             ultimos = select(func.max(LeituraSensor.id)).group_by(LeituraSensor.etapa, LeituraSensor.sensor)
@@ -65,9 +68,34 @@ class Simulador:
             novo = self.valores[chave] + REVERSAO * (x["alvo"] - self.valores[chave]) \
                 + random.gauss(0, x["ruido"] * x["alvo"])
             self.valores[chave] = round(max(novo, 0), x["casas"])
+        self.variar_chuva()
         self.valores[("Fermentação", "Temperatura da dorna 3")] = self.dorna3()
         self.valores[("Fermentação", "Temperatura da dorna 2")] = self.dorna2()
         self.derivados()
+
+    def variar_chuva(self) -> None:
+        """Com chuva a moagem cai para FATOR_CHUVA da média; depois volta, mais rápido que a variação normal."""
+        chave, x = ("Recepção e moagem", "Cana processada"), self.specs[("Recepção e moagem", "Cana processada")]
+        alvo = x["alvo"] * (FATOR_CHUVA if self.chuva_fim else 1.0)
+        if self.chuva_fim or self.valores[chave] < 0.93 * x["alvo"]:
+            self.valores[chave] = round(self.valores[chave] + 0.3 * (alvo - self.valores[chave]), x["casas"])
+
+    def atualizar_chuva(self, s: Session, agora: datetime, dt: float) -> None:
+        """Sorteia o início da chuva, encerra no fim e grava o instante final para a API (parâmetro chuva_fim)."""
+        t = time.time()
+        if self.chuva_fim and t >= self.chuva_fim:
+            self.chuva_fim = 0.0
+            s.add(Ocorrencia(ts=agora, nivel="OK", area="Moagem", mensagem="Chuva terminou: moagem voltando ao normal",
+                             prioridade="info"))
+        elif not self.chuva_fim and random.random() < CHANCE_CHUVA * dt:
+            self.chuva_fim = t + random.uniform(*DURACAO_CHUVA)
+            s.add(Ocorrencia(ts=agora, nivel="Info", area="Moagem",
+                             mensagem="Chuva na lavoura: moagem e fila de caminhões reduzidas", prioridade="info"))
+        p = s.get(Parametro, "chuva_fim")
+        if p:
+            p.valor = self.chuva_fim
+        else:
+            s.add(Parametro(chave="chuva_fim", valor=self.chuva_fim))
 
     def derivados(self) -> None:
         """Indicadores do setor, coerentes entre si e com a moagem.
@@ -91,7 +119,8 @@ class Simulador:
         etanol = self.v("Destilação", "Hidratado") + self.v("Destilação", "Anidro")
         # Fila na recepção cresce com a moagem perto da capacidade (nominal de 24.000 t/dia).
         carga = self.v("Recepção e moagem", "Cana processada") / 24000
-        self.valores[("Recepção e moagem", "Fila de recepção")] = max(0, round(4 + 14 * (carga - 0.8) + random.gauss(0, 0.7)))
+        fila = max(0, round(4 + 14 * (carga - 0.8) + random.gauss(0, 0.7)))
+        self.valores[("Recepção e moagem", "Fila de recepção")] = round(fila * 0.3) if self.chuva_fim else fila
         self.valores[("Indicadores gerais", "Rendimento industrial")] = \
             round(etanol * 1000 / self.v("Recepção e moagem", "Cana processada"), 1)
 
@@ -190,6 +219,8 @@ class Simulador:
         dt, self.ultimo = mono - self.ultimo, mono
         with Session(engine) as s:
             self.mix = ler_mix(s)  # o painel pode ter mudado o mix
+            self.atualizar_chuva(s, agora, dt)
+            s.commit()
         self.variar()
         self.cogerar(dt)
         with Session(engine) as s:
@@ -203,16 +234,19 @@ class Simulador:
         print(f"[{agora:%H:%M:%S}] ciclo {self.ciclo}: "
               f"cana {self.v('Recepção e moagem', 'Cana processada'):.0f} t/dia, "
               f"dorna 3 {self.v('Fermentação', 'Temperatura da dorna 3'):.1f} °C, mix {self.mix:.0f}% açúcar, "
-              f"exporta {self.v('Utilidades', 'Energia exportada'):.1f} MW", flush=True)
+              f"exporta {self.v('Utilidades', 'Energia exportada'):.1f} MW{' [chuva]' if self.chuva_fim else ''}", flush=True)
 
 
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--intervalo", type=float, default=10, help="segundos entre ciclos (padrão: 10)")
     p.add_argument("--ciclos", type=int, default=0, help="parar após N ciclos (padrão: sem fim)")
+    p.add_argument("--chuva-ja", action="store_true", help="começa com uma chuva (para testar o efeito)")
     args = p.parse_args()
 
     sim = Simulador()
+    if args.chuva_ja:
+        sim.chuva_fim = time.time() + 180
     print(f"Banco pronto. Gravando a cada {args.intervalo:g} s. Ctrl+C para parar.", flush=True)
     proximo = time.monotonic()
     try:

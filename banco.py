@@ -139,6 +139,55 @@ def cogeracao(moagem_t: float, umidade_pct: float, pressao_bar: float, mix_acuca
                 consumida_kwh_t=round(por_t(consumida), 1), exportada_kwh_t=round(por_t(exportada), 1))
 
 
+# ---------------------------------------------------------------- gestão: perdas em R$ e Sankey
+
+DENSIDADE_ETANOL = 0.8   # t/m³, para pôr o etanol na mesma unidade (massa) do Sankey
+FATOR_CHUVA = 0.6        # a moagem cai para 60% enquanto chove
+
+
+def precos() -> dict:
+    """Preços de venda, lidos de dados-exemplo/precos.json (único lugar para editar): açúcar R$/t, etanol R$/m³, energia R$/MWh."""
+    return ler_json("precos")
+
+
+def financeiro(b: dict, e: dict) -> dict:
+    """Perdas e receita do dia em R$, a partir do balanço de massa e da cogeração.
+
+    O ATR perdido (perdas totais x ATR da cana) é valorado pelo preço do produto que ele viraria, pesado pelo mix.
+    """
+    p, mix = precos(), b["mix_acucar"] / 100
+    acucar_por_atr = 1 / FATOR_ACUCAR                                              # t de açúcar por t de ATR
+    etanol_por_atr = PARTE_HIDRATADO / FATOR_HIDRATADO + (1 - PARTE_HIDRATADO) / FATOR_ANIDRO  # m³ por t de ATR
+    valor_atr = mix * acucar_por_atr * p["acucar_r_t"] + (1 - mix) * etanol_por_atr * p["etanol_r_m3"]  # R$ por t de ATR
+    perdido_t = b["atr_total_t"] * b["perdas_pct"] / 100
+    acima_t = b["atr_total_t"] * max(b["perdas_pct"] - PERDAS_PLANO, 0) / 100
+    energia_mwh = e["exportada_mw"] * 24
+    receita = dict(acucar=b["acucar_t"] * p["acucar_r_t"], etanol=b["etanol_m3"] * p["etanol_r_m3"],
+                   energia=energia_mwh * p["energia_r_mwh"])
+    return dict(precos=p, valor_atr_r_t=round(valor_atr), atr_perdido_t=round(perdido_t, 1),
+                perdas_rs_dia=round(perdido_t * valor_atr), perdas_acima_plano_rs_dia=round(acima_t * valor_atr),
+                perdas_plano_pct=PERDAS_PLANO, energia_mwh_dia=round(energia_mwh, 1),
+                receita_rs_dia={k: round(v) for k, v in receita.items()} | dict(total=round(sum(receita.values()))))
+
+
+def sankey(b: dict, e: dict) -> dict:
+    """Fluxos de massa (t/dia): cana -> caldo e bagaço; caldo -> açúcar, etanol e vinhaça/água; bagaço -> energia e estoque."""
+    cana, bagaco = b["moagem_t"], e["bagaco_produzido_t"]
+    caldo = cana - bagaco
+    etanol_t = b["etanol_m3"] * DENSIDADE_ETANOL
+    resto = max(caldo - b["acucar_t"] - etanol_t, 0.0)                              # água e vinhaça
+    queimado = min(e["bagaco_queimado_t"], bagaco)
+    nos = [("cana", "Cana", cana, "t"), ("caldo", "Caldo", caldo, "t"), ("bagaco", "Bagaço", bagaco, "t"),
+           ("acucar", "Açúcar", b["acucar_t"], "t"), ("etanol", "Etanol", b["etanol_m3"], "m³"),
+           ("vinhaca", "Vinhaça e água", b["vinhaca_m3"], "m³"), ("energia", "Energia", e["exportada_mw"], "MW exportados"),
+           ("estoque", "Estoque de bagaço", bagaco - queimado, "t")]
+    elos = [("cana", "caldo", caldo), ("cana", "bagaco", bagaco), ("caldo", "acucar", b["acucar_t"]),
+            ("caldo", "etanol", etanol_t), ("caldo", "vinhaca", resto), ("bagaco", "energia", queimado),
+            ("bagaco", "estoque", bagaco - queimado)]
+    return dict(nos=[dict(id=i, nome=n, valor=round(v, 1), unidade=u) for i, n, v, u in nos],
+                elos=[dict(de=a, para=c, t=round(v, 1)) for a, c, v in elos])
+
+
 def mix_produtos(mix_acucar: float) -> dict[str, float]:
     """Participação (% do ATR) de cada produto do mix, na ordem de mix.json."""
     a = mix_acucar

@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from banco import (ATR_META, CAPACIDADES, ETAPAS_3D, LIMITES_TEMP, PERDAS_PLANO, RAIZ, REGRAS, SENSOR_GRAFICO,
                    TEMP_DORNAS, HistoricoSafra, LeituraSensor, Ocorrencia, Parametro, ProducaoDiaria, balanco,
-                   causa_acao, cogeracao, em_alarme, engine, fmt_br, ler_json, ler_mix, mix_produtos, semear, tendencias)
+                   causa_acao, FATOR_CHUVA, cogeracao, financeiro, sankey, em_alarme, engine, fmt_br, ler_json, ler_mix, mix_produtos, semear, tendencias)
 from previsao import prever_etanol
 
 INICIO_SAFRA = date(2026, 4, 11)  # dia 190 da safra = 18/10/2026
@@ -200,6 +200,24 @@ def energia_atual(s: Session, atuais: dict | None = None) -> dict:
     return dict(e, estoque_bagaco_t=u("Estoque de bagaço"))
 
 
+def chuva_atual(s: Session) -> dict:
+    """Evento de chuva do simulador: ativo enquanto o instante gravado em chuva_fim não passou."""
+    p = s.get(Parametro, "chuva_fim")
+    restante = max(p.valor - time.time(), 0) if p else 0
+    return dict(ativa=restante > 0, restante_s=round(restante), fator_moagem=FATOR_CHUVA)
+
+
+@app.get("/api/chuva")
+def chuva(s: Session = Sessao):
+    return chuva_atual(s)
+
+
+@app.get("/api/financeiro")
+def financas(s: Session = Sessao):
+    """Perdas totais em R$/dia (ATR perdido valorado pelo mix) e receita estimada; preços em dados-exemplo/precos.json."""
+    return financeiro(balanco_atual(s), energia_atual(s))
+
+
 @app.get("/api/energia")
 def energia(s: Session = Sessao):
     """Cogeração: bagaço queimado, vapor, energia gerada/consumida/exportada (MW e kWh/t de cana) e estoque de bagaço."""
@@ -331,8 +349,9 @@ def cena(s: Session = Sessao):
     limite = [a for a in ativos if not a["tendencia"]]  # o status das etapas só reage a limite violado
     dornas = {str(n): "limite" if any(a["id"] == f"dorna{n}" for a in limite)
               else "tendencia" if f"dorna{n}" in previstos else "ok" for n in TEMP_DORNAS}
-    return dict(montar_cena(atuais, limite), alertas=ativos, estado_dornas=dornas,
-                balanco=balanco_atual(s, atuais), energia=energia_atual(s, atuais))
+    bal, ene = balanco_atual(s, atuais), energia_atual(s, atuais)
+    return dict(montar_cena(atuais, limite), alertas=ativos, estado_dornas=dornas, balanco=bal, energia=ene,
+                financeiro=financeiro(bal, ene), sankey=sankey(bal, ene), chuva=chuva_atual(s))
 
 
 @app.get("/api/historico")

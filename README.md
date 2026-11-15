@@ -26,6 +26,9 @@ Painel web em vista 3D isométrica que acompanha uma usina de cana-de-açúcar, 
 - **Gestão de alarmes:** prioridade (crítico, atenção, info), botão **Reconhecer**, histórico e tempo até o reconhecimento.
 - **Alarme por tendência:** a API ajusta uma reta às leituras dos últimos 2 minutos de cada sensor com limite e avisa quando o limite deve ser cruzado em até 10 minutos (descarta inclinações que são só ruído). Todo alarme, de tendência ou de limite, traz **causa provável** e **ação sugerida**.
 - **Dornas no 3D (a dorna 2 deriva devagar no simulador, para a tendência aparecer minutos antes do limite):** cor em gradiente térmico (azul frio, verde, amarelo, vermelho) e anel pulsante no chão: amarelo = tendência de passar do limite, vermelho = acima do limite.
+- **Perdas em R$/dia:** o ATR perdido (perdas totais x ATR da cana) é valorado pelo mix e aparece como contador em destaque no topo (a dica mostra a parte acima do plano e a receita estimada). Os preços de açúcar (R$/t), etanol (R$/m³) e energia (R$/MWh) ficam num só lugar: `dados-exemplo/precos.json`.
+- **Sankey do balanço de massa** no painel lateral: cana → caldo e bagaço → açúcar, etanol, vinhaça/água, energia e estoque de bagaço (altura = massa em t/dia).
+- **Evento de chuva** no simulador (em média a cada ~14 min, por 2,5 a 4 min, ou `python simulador.py --chuva-ja`): a moagem cai para 60% e a fila de caminhões diminui; o 3D mostra gotas e cena mais escura, e o painel avisa. Some sozinho.
 - **Pergunte à usina:** caixa de texto com respostas por regras e palavras-chave lendo o banco (sem serviços externos). A câmera foca a etapa citada.
 - **Voltar no tempo:** controle deslizante de até 120 minutos que mostra painel e KPIs gravados, com a etiqueta "histórico" e o botão "Voltar ao vivo".
 - **Clique no caminhão:** cartão com ID, tipo, carga, destino e ETA (dados simulados no navegador, rotulados).
