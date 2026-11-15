@@ -3,10 +3,10 @@
 Painel web em vista 3D isométrica que acompanha uma usina de cana-de-açúcar, da moagem à expedição. A cena, os indicadores e os alarmes são alimentados por uma API real (FastAPI + SQLite) e por um simulador. O painel 2D original continua disponível em `/2d`.
 
 ![Painel 3D da usina](docs/painel3d.png)
-*Vista 3D da usina com alerta da dorna 3.*
+*Vista geral da usina em 3D, com a casa de força e a linha de transmissão, o contador de perdas em R$/dia no topo e o Sankey do balanço de massa no painel lateral.*
 
 ![Detalhe da fermentação](docs/fermentacao-alerta.png)
-*Detalhe da fermentação: dorna 3 acima do limite de temperatura.*
+*Lista de alarmes com causa provável e ação sugerida em cada item (limite e tendência), com a dorna em alerta de temperatura na cena e no painel.*
 
 ![Previsão de etanol](docs/previsao.png)
 *Previsão de etanol para os próximos 5 dias, com intervalo de confiança de 80%.*
