@@ -208,6 +208,8 @@
   .al .pr { font-size: 10.5px; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; letter-spacing: .04em; border: 1px solid; white-space: nowrap; }
   .pr.critico { color: #f87171; border-color: rgba(248, 113, 113, .5); }
   .pr.atencao { color: var(--orange); border-color: rgba(251, 146, 60, .5); }
+  .pr.tend { color: #facc15; border-color: rgba(250, 204, 21, .5); }
+  .al small.why { color: #cbd5da; line-height: 1.45; }
   .pr.info { color: #7dd3fc; border-color: rgba(125, 211, 252, .4); }
   .al button { border: 1px solid rgba(34, 197, 94, .5); background: rgba(34, 197, 94, .12); border-radius: 999px; padding: 3px 10px; font-size: 12px; }
   .al.ok { opacity: .72; }
@@ -407,7 +409,7 @@
   let T = 0; // tempo da simulação (s)
   let flowPh = 0, smokeD = 0.5; // fase dos pontos nas tubulações e densidade da fumaça (0,5 normal, 1 densa)
   // Com a API, o status vem dos alertas ativos do banco; sem ela, regra local do exemplo.
-  let apiOk = false, cena = {}, cenaAlertas = [], histMode = false, forecast = [], selTruck = null;
+  let apiOk = false, cena = {}, cenaAlertas = [], dornaTemps = null, dornaEst = null, histMode = false, forecast = [], selTruck = null;
   const TANK_CAP = 22000; // m³, capacidade do tanque de etanol
   // Mix açúcar/etanol (% do ATR para açúcar) e balanço de massa; com a API vem de /api/cena, sem ela é calculado aqui
   let mixA = 50, bal = null, mixHold = 0, energia = null;
@@ -426,6 +428,9 @@
     const aA = rec * mixA / 100, aE = rec - aA, hid = aE * BAL.parteHid / BAL.hid, ani = aE * (1 - BAL.parteHid) / BAL.ani;
     return { mix_acucar: mixA, moagem_t: m, atr_recuperado_t: rec, acucar_t: aA / BAL.acucar, etanol_m3: hid + ani, bagaco_t: m * BAL.bagaco, vinhaca_m3: (hid + ani) * BAL.vinhaca };
   }
+  // Temperatura e estado (ok | tendencia | limite) de cada dorna; sem API só a dorna 3 é simulada.
+  const dornasTemp = () => [1, 2, 3, 4].map((n) => (apiOk && dornaTemps && dornaTemps[n] != null) ? dornaTemps[n] : n === 3 ? byId.fermentacao.ind[0].v : [31.4, 31.8, 0, 31.6][n - 1]);
+  const dornaEstado = (n) => (apiOk && dornaEst && dornaEst[n]) || (dornasTemp()[n - 1] > 33 ? 'limite' : 'ok');
   function statusOf(s) { if (apiOk) return s.alerts && s.alerts.length ? 'warn' : 'ok'; return s.id === 'fermentacao' && s.ind[0].v > 33 ? 'warn' : 'ok'; }
   function tickData() {
     T += 2.5;
@@ -535,17 +540,22 @@
     cyl(0.5, 1.6, C.wall2, 5.2 - 3, B, -5.2, g); }
 
   // 3. Fermentação
-  const dornaBand = mat(C.bandG, { emissive: 0x0a3a1a, emissiveIntensity: 0.6 });
-  const dornaHot = mat(C.orange, { emissive: 0xfb923c, emissiveIntensity: 0.9 });
+  // Cada dorna tem material próprio: corpo e faixa mudam de cor com a temperatura (azul frio -> vermelho quente).
+  const THERM = [0x3b82f6, 0x2f9e63, 0xfacc15, 0xef4444], THERM_MIN = 30, THERM_MAX = 34.5;
+  const thermColor = (v) => { const n = THERM.length - 1, u = Math.min(Math.max((v - THERM_MIN) / (THERM_MAX - THERM_MIN), 0), 1) * n, i = Math.min(n - 1, Math.floor(u));
+    return new THREE.Color(THERM[i]).lerp(new THREE.Color(THERM[i + 1]), u - i); };
+  const dornaMats = [0, 1, 2, 3].map(() => ({ body: new THREE.MeshStandardMaterial({ color: C.steel, roughness: 0.6, metalness: 0.2 }),
+    band: new THREE.MeshStandardMaterial({ color: C.bandG, roughness: 0.5, metalness: 0.1, emissiveIntensity: 0.55 }) }));
+  const dornaRings = [];  // anel no chão de cada dorna: amarelo = tendência de passar do limite, vermelho = acima do limite
   { const g = stageGroup('fermentacao', 10.5, -2.8, 13, 12.4);
     [[7, -5], [13, -5], [7, 1], [13, 1]].forEach(([x, z], i) => {
-      cyl(2.2, 5.2, C.steel, x, B, z, g, 36);
+      cyl(2.2, 5.2, dornaMats[i].body, x, B, z, g, 36);
       const dome = new THREE.Mesh(new THREE.SphereGeometry(2.2, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat(C.wall2));
       dome.position.set(x, B + 5.2, z); dome.scale.y = 0.45; dome.castShadow = true; g.add(dome);
-      const band = cyl(2.28, 0.45, i === 2 ? dornaHot : dornaBand, x, B + 3.6, z, g, 36); if (i === 2) g.userData.hot = band; });
+      cyl(2.28, 0.45, dornaMats[i].band, x, B + 3.6, z, g, 36);
+      const ring = new THREE.Mesh(new THREE.RingGeometry(2.7, 3.2, 48), new THREE.MeshBasicMaterial({ color: C.yellow, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
+      ring.rotation.x = -Math.PI / 2; ring.position.set(x, B + 0.08, z); ring.visible = false; scene.add(ring); dornaRings.push(ring); });
     box(1.1, 5.4, 1.1, C.wall2, 10, B, -2, g); }
-  const beacon = new THREE.Mesh(new THREE.RingGeometry(2.7, 3.2, 48), new THREE.MeshBasicMaterial({ color: C.orange, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
-  beacon.rotation.x = -Math.PI / 2; beacon.position.set(7, B + 0.08, 1); scene.add(beacon);
 
   // 4. Destilação
   { const g = stageGroup('destilacao', 11.3, 10.8, 10.2, 8.4);
@@ -1100,13 +1110,18 @@
     } else { pipes.forEach((P) => P.dots.forEach((o) => { const p = at(P, o.off % P.L); o.m.position.set(p.x, 0.78, p.z); }));
       pileH = 0.25 + 2.1 * clamp((bal ? bal.acucar_t : 0) / 2500, 0, 1); sugarPile.scale.y = pileH; sugarPile.position.y = 0.12 + pileH / 2; }
     const warn = statusOf(byId.fermentacao) === 'warn';
-    beacon.visible = warn; groups.fermentacao.userData.hot.material = warn ? dornaHot : dornaBand;
+    const dT = dornasTemp(), pulso = 0.5 + 0.5 * Math.sin(now / (warn ? 260 : 420));
+    dornaMats.forEach((m, i) => {
+      const c = thermColor(dT[i]), est = dornaEstado(i + 1), ring = dornaRings[i];
+      m.body.color.set(C.steel).lerp(c, 0.55); m.band.color.copy(c); m.band.emissive.copy(c).multiplyScalar(0.35);
+      ring.visible = est !== 'ok';
+      if (ring.visible) { ring.material.color.setHex(est === 'limite' ? 0xef4444 : C.yellow); ring.material.opacity = 0.35 + 0.55 * pulso; ring.scale.setScalar(1 + 0.1 * pulso); }
+    });
     const fe = groups.fermentacao.userData.edge.material.color;
     if (warn) { const u = 0.5 + 0.5 * Math.sin(now / 260); fe.setRGB(0.76 + 0.2 * u, 0.41 + 0.12 * u, 0.18 + 0.05 * u); } else fe.setHex(sel === 'fermentacao' ? C.green : C.edge);
     const gN = night ? 1 : 0;
     if (Math.abs(nightK - gN) > 0.002) { nightK += (gN - nightK) * (still ? 1 : Math.min(1, dt * 3)); applyNight(nightK); }
     if (!still && !touched && !autoDone && now - t0 > 3800 && warn) { autoDone = true; select('fermentacao', true); }
-    if (warn) { const u = (now % 1800) / 1800; beacon.scale.setScalar(0.92 + u * 0.28); beacon.material.opacity = still ? 0.7 : 0.85 * (1 - u); }
     const lv = layer !== 'op'; let vi = 0;
     for (const id in vols) {
       const v = vols[id]; v.g.visible = lv; vi++; if (!lv) continue;
@@ -1154,8 +1169,10 @@
     const box = $('#alarms');
     if (!apiOk) { box.innerHTML = '<div class="top2"><b>Alarmes</b><button type="button" data-close>Fechar</button></div><p class="desc">Sem conexão com a API: alarmes indisponíveis.</p>'; return; }
     const btn = (id) => `<button type="button" data-ack="${id}">Reconhecer</button>`;
-    const ativos = cenaAlertas.map((a) => `<div class="al"><span class="pr ${a.prioridade}">${PRIO[a.prioridade]}</span><span>${esc(a.mensagem)}</span>${a.alarme_id && !a.reconhecido ? btn(a.alarme_id) : '<span></span>'}<small>${esc(a.area)} · ${a.reconhecido ? ackText(a) : 'aguardando reconhecimento'}</small></div>`).join('');
-    const hist = alarmes.map((a) => `<div class="al ok"><span class="pr ${a.prioridade}">${PRIO[a.prioridade]}</span><span>${esc(a.mensagem)}</span>${a.nivel === 'Atenção' && !a.reconhecido ? btn(a.id) : '<span></span>'}<small>${a.hora} · ${esc(a.area)}${a.nivel === 'Atenção' ? ' · ' + ackText(a) : ''}</small></div>`).join('');
+    const dica = (a) => a.causa ? `<small class="why"><b>Causa provável:</b> ${esc(a.causa)}<br><b>Ação sugerida:</b> ${esc(a.acao)}</small>` : '';
+    const tag = (a) => a.tendencia ? '<span class="pr tend">Tendência</span>' : `<span class="pr ${a.prioridade}">${PRIO[a.prioridade]}</span>`;
+    const ativos = cenaAlertas.map((a) => `<div class="al">${tag(a)}<span>${esc(a.mensagem)}</span>${a.alarme_id && !a.reconhecido ? btn(a.alarme_id) : '<span></span>'}<small>${esc(a.area)} · ${a.reconhecido ? ackText(a) : 'aguardando reconhecimento'}</small>${dica(a)}</div>`).join('');
+    const hist = alarmes.map((a) => `<div class="al ok">${tag(a)}<span>${esc(a.mensagem)}</span>${a.nivel === 'Atenção' && !a.reconhecido ? btn(a.id) : '<span></span>'}<small>${a.hora} · ${esc(a.area)}${a.nivel === 'Atenção' ? ' · ' + ackText(a) : ''}</small>${a.nivel === 'Atenção' ? dica(a) : ''}</div>`).join('');
     box.innerHTML = `<div class="top2"><b>Alarmes</b><button type="button" data-close>Fechar</button></div><h3>Ativos agora</h3>${ativos || '<p class="desc">Nenhum alarme ativo.</p>'}<h3>Histórico</h3>${hist}`;
   }
   $('#alarms').addEventListener('click', (e) => {
@@ -1191,7 +1208,7 @@
     const I = Object.fromEntries(ix.map((i) => [i.id, i.valor]));
     put(byId.moagem, 3, I.ef_extracao); put(byId.fermentacao, 4, I.ef_fermentacao);
     put(byId.destilacao, 4, I.rendimento); put(byId.destilacao, 5, I.perdas);
-    cena = cn.etapas; cenaAlertas = cn.alertas; alarmes = al;
+    cena = cn.etapas; cenaAlertas = cn.alertas; alarmes = al; dornaTemps = cn.dornas; dornaEst = cn.estado_dornas;
     if (cn.balanco && Date.now() > mixHold) { bal = cn.balanco; mixA = bal.mix_acucar; }
     if (cn.energia) energia = cn.energia;
   }
@@ -1253,7 +1270,7 @@
       const serie = ((d.series[s.id]) || []).filter((p) => new Date(p.ts).getTime() <= t(snap) + 59000).slice(-30).map((p) => p.v);
       if (serie.length >= 2) s.hist = serie;
     });
-    cena = snap.cena.etapas; cenaAlertas = snap.cena.alertas;
+    cena = snap.cena.etapas; cenaAlertas = snap.cena.alertas; dornaTemps = snap.cena.dornas; dornaEst = null;
     histMode = true;
     const hh = new Date(snap.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     $('#srcTxt').textContent = `Histórico · ${hh}`; $('#tlTxt').textContent = `−${n} min`; $('#tlLive').hidden = false;

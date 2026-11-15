@@ -4,7 +4,7 @@ Usado por simulador.py (grava) e main.py (lê). Os JSONs de dados-exemplo/ são 
 ponto de partida: viram os primeiros registros e o texto fixo das respostas.
 """
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy import DateTime, Float, Integer, String, create_engine, event, func, select
@@ -295,6 +295,97 @@ def em_alarme(regra: dict, valor: float, ativo: bool = False) -> bool:
     if regra["tipo"] == "max":
         return valor > regra["limite"] - folga
     return valor < regra["limite"] + folga
+
+
+# ---------------------------------------------------------------- alarme por tendência
+
+JANELA_TENDENCIA = timedelta(minutes=2)  # a inclinação sai dos últimos minutos de leituras
+HORIZONTE_MIN = 10.0                     # só avisa se o limite for cruzado em até 10 min
+MIN_PONTOS = 6
+MIN_R2 = 0.8                             # descarta inclinação que é só ruído
+INCLINACAO_MIN = 0.002                   # fração do limite por minuto abaixo da qual a série está "parada"
+
+# Causa provável e ação sugerida de cada regra; valem para o alarme de limite e para o de tendência.
+CAUSAS = {
+    "ph_baixo": ("Excesso de ácido ou pouca cal na calagem do caldo",
+                 "Conferir a dosagem de cal e corrigir o pH do caldo antes da decantação"),
+    "ph_alto": ("Excesso de cal na calagem",
+                "Reduzir a dosagem de cal e conferir a leitura do pHmetro"),
+    "extracao": ("Moenda desregulada ou embuchamento; cana muito fibrosa",
+                 "Ajustar pressão e rotação dos rolos, conferir a embebição e a preparação da cana"),
+    "umidade_bagaco": ("Embebição excessiva ou pressão baixa nos rolos da última moenda",
+                       "Reduzir a embebição e aumentar a pressão da última moenda"),
+    "vapor": ("Pouco bagaço na caldeira ou demanda de vapor acima da geração",
+              "Aumentar a alimentação de bagaço, conferir a queima e adiar cargas de vapor não essenciais"),
+    "pureza": ("Refluxo baixo ou instabilidade de vapor na coluna",
+               "Aumentar o refluxo da coluna e estabilizar o vapor de aquecimento"),
+    "ef_ferm": ("Temperatura alta nas dornas ou levedura estressada",
+                "Resfriar as dornas, conferir viabilidade da levedura e acidez do mosto"),
+    "fila": ("Poucos pontos de carregamento ou atraso na liberação dos caminhões",
+             "Abrir mais um ponto de carregamento e reprogramar os agendamentos"),
+}
+for _n in TEMP_DORNAS:
+    CAUSAS[f"dorna{_n}"] = ("Fermentação acelerada ou pouca água de resfriamento no trocador da dorna",
+                            f"Aumentar a vazão de água de resfriamento da dorna {_n} e conferir o trocador de calor")
+
+
+def causa_acao(regra_id: str | None) -> dict:
+    """Causa provável e ação sugerida de uma regra (aceita o prefixo tend_ do alarme por tendência)."""
+    c = CAUSAS.get((regra_id or "").removeprefix("tend_"))
+    return dict(causa=c[0], acao=c[1]) if c else {}
+
+
+def inclinacao(pontos: list[tuple[float, float]]) -> tuple[float, float] | None:
+    """Reta de mínimos quadrados de (segundos, valor): devolve (inclinação por minuto, R²)."""
+    n = len(pontos)
+    if n < MIN_PONTOS:
+        return None
+    mt, mv = sum(p[0] for p in pontos) / n, sum(p[1] for p in pontos) / n
+    stt = sum((t - mt) ** 2 for t, _ in pontos)
+    svv = sum((v - mv) ** 2 for _, v in pontos)
+    if stt == 0 or svv == 0:
+        return None
+    stv = sum((t - mt) * (v - mv) for t, v in pontos)
+    return stv / stt * 60, stv * stv / (stt * svv)
+
+
+def tendencia(regra: dict, pontos: list[tuple[float, float]]) -> dict | None:
+    """Prevê quando a série cruza o limite da regra, se continuar na inclinação dos últimos minutos."""
+    reta = inclinacao(pontos)
+    if not reta:
+        return None
+    por_min, r2 = reta
+    atual = pontos[-1][1]
+    if em_alarme(regra, atual) or r2 < MIN_R2:
+        return None
+    sentido = 1 if regra["tipo"] == "max" else -1
+    ritmo = por_min * sentido  # positivo = aproximando-se do limite
+    if ritmo < INCLINACAO_MIN * abs(regra["limite"]):
+        return None
+    minutos = abs(regra["limite"] - atual) / ritmo
+    if minutos > HORIZONTE_MIN:
+        return None
+    return dict(minutos=round(minutos, 1), por_minuto=round(por_min, 2), r2=round(r2, 2))
+
+
+def tendencias(s: Session, agora: datetime | None = None) -> dict[str, dict]:
+    """Regras que vão passar do limite em breve, pela inclinação das leituras da janela recente."""
+    agora = agora or datetime.now()
+    desde = agora - JANELA_TENDENCIA
+    series: dict[tuple[str, str], list[tuple[float, float]]] = {}
+    for ts, e, n, v in s.execute(select(LeituraSensor.ts, LeituraSensor.etapa, LeituraSensor.sensor, LeituraSensor.valor)
+                                 .where(LeituraSensor.ts >= desde).order_by(LeituraSensor.ts)):
+        series.setdefault((e, n), []).append((ts.timestamp(), v))
+    achadas = {}
+    for r in REGRAS:
+        t = tendencia(r, series.get((r["etapa"], r["sensor"]), []))
+        if t:
+            casas = 1 if r["sensor"] != "Pressão de vapor" else 0
+            lado = "passar de" if r["tipo"] == "max" else "cair abaixo de"
+            t["mensagem"] = (f"{r['sensor']} deve {lado} {fmt_br(r['limite'], casas)} em ~{fmt_br(t['minutos'], 0)} min "
+                             f"({'+' if t['por_minuto'] > 0 else ''}{fmt_br(t['por_minuto'], 2)} por min)")
+            achadas[r["id"]] = t
+    return achadas
 
 
 # ---------------------------------------------------------------- carga

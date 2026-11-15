@@ -24,6 +24,8 @@ Painel web em vista 3D isométrica que acompanha uma usina de cana-de-açúcar, 
 - **Painel da etapa** com indicadores, gráfico dos últimos minutos e, na Expedição, a previsão de etanol de 5 dias e o estoque projetado.
 - **Indicadores do setor:** rendimento industrial, eficiência de fermentação, eficiência de extração e perdas totais, calculados pelo simulador de forma coerente com a moagem.
 - **Gestão de alarmes:** prioridade (crítico, atenção, info), botão **Reconhecer**, histórico e tempo até o reconhecimento.
+- **Alarme por tendência:** a API ajusta uma reta às leituras dos últimos 2 minutos de cada sensor com limite e avisa quando o limite deve ser cruzado em até 10 minutos (descarta inclinações que são só ruído). Todo alarme, de tendência ou de limite, traz **causa provável** e **ação sugerida**.
+- **Dornas no 3D (a dorna 2 deriva devagar no simulador, para a tendência aparecer minutos antes do limite):** cor em gradiente térmico (azul frio, verde, amarelo, vermelho) e anel pulsante no chão: amarelo = tendência de passar do limite, vermelho = acima do limite.
 - **Pergunte à usina:** caixa de texto com respostas por regras e palavras-chave lendo o banco (sem serviços externos). A câmera foca a etapa citada.
 - **Voltar no tempo:** controle deslizante de até 120 minutos que mostra painel e KPIs gravados, com a etiqueta "histórico" e o botão "Voltar ao vivo".
 - **Clique no caminhão:** cartão com ID, tipo, carga, destino e ETA (dados simulados no navegador, rotulados).
@@ -132,6 +134,7 @@ Abra <http://127.0.0.1:8001> para o painel 3D e <http://127.0.0.1:8001/2d> para 
 - Empacotamento com Docker (e troca do SQLite por PostgreSQL).
 - Paleta de comandos com Ctrl+K para buscar etapas, alarmes e perguntas.
 - Notificações de alarmes críticos (e-mail ou mensagem) e autenticação.
+- Fase 5: rotular como "simulado", no painel e no README, o estoque de bagaço (evolui 1440x mais rápido que o real, para a pilha variar na demo).
 
 ## Autora
 

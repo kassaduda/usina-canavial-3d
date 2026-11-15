@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from banco import (ESTOQUE_BAGACO_MAX, INFO_SORTEIO, QUEIMA_PADRAO, REGRAS, HistoricoSafra, LeituraSensor, Ocorrencia,
                    ProducaoDiaria, balanco, cogeracao, em_alarme, engine, fmt_br, ler_mix, mix_produtos, semear,
-                   sensores)
+                   sensores, tendencias)
 
 REVERSAO = 0.1           # quanto o valor volta ao alvo a cada ciclo
 CICLOS_POR_SAFRA = 6     # um registro de historico_safra por minuto
@@ -34,6 +34,7 @@ class Simulador:
         self.specs = {(x["etapa"], x["sensor"]): x for x in sensores()}
         self.valores = {k: x["inicial"] for k, x in self.specs.items()}
         self.em_alarme: dict[str, bool] = {}
+        self.em_tendencia: set[str] = set()
         self.ciclo = 0
         self.mix = 50.0
         self.ultimo = time.monotonic()
@@ -65,6 +66,7 @@ class Simulador:
                 + random.gauss(0, x["ruido"] * x["alvo"])
             self.valores[chave] = round(max(novo, 0), x["casas"])
         self.valores[("Fermentação", "Temperatura da dorna 3")] = self.dorna3()
+        self.valores[("Fermentação", "Temperatura da dorna 2")] = self.dorna2()
         self.derivados()
 
     def derivados(self) -> None:
@@ -117,6 +119,15 @@ class Simulador:
         u = (1 + math.sin(2 * math.pi * time.time() / 360)) / 2
         return round(32.6 + 2.0 * u ** 0.685 + random.gauss(0, 0.02), 1)
 
+    def dorna2(self) -> float:
+        """Dorna 2 sobe devagar de 31,8 a 33,8 °C em 5 min, segura 1 min e volta em 6 (ciclo de 12 min).
+
+        É a deriva lenta que o alarme por tendência consegue prever com minutos de antecedência.
+        """
+        f = (time.time() % 720) / 60  # minuto dentro do ciclo
+        sobe = f / 5 if f < 5 else 1.0 if f < 6 else 1 - (f - 6) / 6
+        return round(31.8 + 2.0 * sobe + random.gauss(0, 0.02), 1)
+
     def gravar_leituras(self, s: Session, agora: datetime) -> None:
         s.add_all(LeituraSensor(ts=agora, etapa=e, sensor=n, valor=self.valores[(e, n)], unidade=x["unidade"])
                   for (e, n), x in self.specs.items() if x["ruido"])
@@ -141,6 +152,14 @@ class Simulador:
             texto = (r["texto"] if novo else r["texto_ok"]).format(valor=fmt_br(valor, self.specs[chave]["casas"]))
             s.add(Ocorrencia(ts=agora, nivel="Atenção" if novo else "OK", area=r["area"], mensagem=texto,
                              prioridade=r["prioridade"] if novo else "info", regra=r["id"]))
+        # Alarme por tendência: registra quando a previsão começa; sai da lista ao deixar de valer.
+        previstos = tendencias(s, agora)
+        for rid, t in previstos.items():
+            if rid not in self.em_tendencia:
+                r = next(x for x in REGRAS if x["id"] == rid)
+                s.add(Ocorrencia(ts=agora, nivel="Atenção", area=r["area"], mensagem=t["mensagem"],
+                                 prioridade="atencao", regra="tend_" + rid))
+        self.em_tendencia = set(previstos)
         if random.random() < CHANCE_INFO:
             area, texto = random.choice(INFO_SORTEIO)
             s.add(Ocorrencia(ts=agora, nivel="Info", area=area, mensagem=texto, prioridade="info"))

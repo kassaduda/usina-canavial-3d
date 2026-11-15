@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from banco import (ATR_META, CAPACIDADES, ETAPAS_3D, LIMITES_TEMP, PERDAS_PLANO, RAIZ, REGRAS, SENSOR_GRAFICO,
                    TEMP_DORNAS, HistoricoSafra, LeituraSensor, Ocorrencia, Parametro, ProducaoDiaria, balanco,
-                   cogeracao, em_alarme, engine, fmt_br, ler_json, ler_mix, mix_produtos, semear)
+                   causa_acao, cogeracao, em_alarme, engine, fmt_br, ler_json, ler_mix, mix_produtos, semear, tendencias)
 from previsao import prever_etanol
 
 INICIO_SAFRA = date(2026, 4, 11)  # dia 190 da safra = 18/10/2026
@@ -219,7 +219,8 @@ def ocorrencia(o: Ocorrencia) -> dict:
                 prioridade=o.prioridade or "info", ts=o.ts.isoformat(timespec="seconds"),
                 reconhecido=ack is not None,
                 reconhecido_em=ack.isoformat(timespec="seconds") if ack else None,
-                segundos_ate_reconhecer=round((ack - o.ts).total_seconds()) if ack else None)
+                segundos_ate_reconhecer=round((ack - o.ts).total_seconds()) if ack else None,
+                tendencia=(o.regra or "").startswith("tend_"), **causa_acao(o.regra))
 
 
 @app.get("/api/alertas")
@@ -281,7 +282,7 @@ def alertas_ativos(atuais: dict) -> list[dict]:
         if valor is not None and em_alarme(r, valor):
             casas = 0 if r["sensor"] == "Pressão de vapor" else 1
             ativos.append(dict(id=r["id"], etapa=r["etapa"], area=r["area"], valor=valor,
-                               prioridade=r["prioridade"],
+                               prioridade=r["prioridade"], tendencia=False, **causa_acao(r["id"]),
                                mensagem=r["texto"].format(valor=fmt_br(valor, casas))))
     return ativos
 
@@ -316,12 +317,22 @@ def cena(s: Session = Sessao):
     """Dados das camadas do painel 3D: temperatura/limite, produção/capacidade e alertas ativos."""
     atuais = leituras_atuais(s)
     ativos = alertas_ativos(atuais)
+    previstos = tendencias(s)
+    por_id = {r["id"]: r for r in REGRAS}
+    ativos += [dict(id="tend_" + rid, etapa=por_id[rid]["etapa"], area=por_id[rid]["area"],
+                    valor=atuais.get((por_id[rid]["etapa"], por_id[rid]["sensor"])), prioridade="atencao",
+                    tendencia=True, minutos=t["minutos"], mensagem=t["mensagem"], **causa_acao(rid))
+              for rid, t in previstos.items()]
     for a in ativos:  # liga o alarme ativo ao registro no banco (para reconhecer)
         o = s.scalars(select(Ocorrencia).where(Ocorrencia.regra == a["id"], Ocorrencia.nivel == "Atenção")
                       .order_by(Ocorrencia.id.desc())).first()
         a.update(alarme_id=f"a{o.id}" if o else None, reconhecido=bool(o and o.reconhecido_em),
                  segundos_ate_reconhecer=ocorrencia(o)["segundos_ate_reconhecer"] if o else None)
-    return dict(montar_cena(atuais, ativos), balanco=balanco_atual(s, atuais), energia=energia_atual(s, atuais))
+    limite = [a for a in ativos if not a["tendencia"]]  # o status das etapas só reage a limite violado
+    dornas = {str(n): "limite" if any(a["id"] == f"dorna{n}" for a in limite)
+              else "tendencia" if f"dorna{n}" in previstos else "ok" for n in TEMP_DORNAS}
+    return dict(montar_cena(atuais, limite), alertas=ativos, estado_dornas=dornas,
+                balanco=balanco_atual(s, atuais), energia=energia_atual(s, atuais))
 
 
 @app.get("/api/historico")
